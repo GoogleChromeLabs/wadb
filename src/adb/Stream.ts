@@ -2,7 +2,8 @@ import Device from './Device';
 import Message from './Message';
 import SyncFrame from './SyncFrame';
 import {Options, DEFAULT_OPTIONS} from './Options';
-import {toHex32, decodeCmd} from './Helpers';
+import {toHex32, decodeCmd, checkCmd, checkOk} from './Helpers';
+import AdbDevice from './adb/AdbDevice';
 
 const options: Options = DEFAULT_OPTIONS;
 
@@ -12,15 +13,17 @@ export type StatResult =  {
   time: number,
 };
 
+export type Mode = 10;
+
 export default class Stream {
-  private device: Device;
+  private device: AdbDevice;
   private service: string;
   private localId: number;
   private remoteId: number;
   private cancel: (() => Promise<void>) | null = null;
   private static nextId = 1;
 
-  constructor(device: Device, service: string, localId: number, remoteId: number) {
+  constructor(device: AdbDevice, service: string, localId: number, remoteId: number) {
     this.device = device;
     this.service = service;
     this.localId = localId;
@@ -28,7 +31,7 @@ export default class Stream {
   }
 
   async close(): Promise<void> {
-		if (this.localId != 0) {
+		if (this.localId !== 0) {
 			this.localId = 0;
 			return await this.send('CLSE');
 		}
@@ -43,37 +46,37 @@ export default class Stream {
 		this.remoteId = 0;
   }
 
-  async send(cmd: string, data: string | DataView | null = null): Promise<void> {
+  async send(cmd: string, data: string | BufferSource | null = null): Promise<void> {
 		const m = new Message(cmd, this.localId, this.remoteId, data);
 		return await m.send(this.device);
   };
-  
+
   async receive(): Promise<Message> {
     const response = await Message.receive(this.device);
     // remote's prospective of local_id/remote_id is reversed
-    if (response.arg0 != 0 && response.arg0 != this.remoteId) {
+    if (response.arg0 !== 0 && response.arg0 !== this.remoteId) {
       throw new Error(
         `Incorrect arg0: 0x${toHex32(response.arg0)} (expected 0x${toHex32(this.remoteId)})`
       );
     }
-    if (this.localId != 0 && response.arg1 != this.localId) {
+    if (this.localId !== 0 && response.arg1 !== this.localId) {
       throw new Error(
         `Incorrect arg1: 0x${toHex32(response.arg1)} (expected 0x${toHex32(this.localId)})`
       );
     }
-    return response;    
+    return response;
   }
 
-  async sendReceive(cmd: string, data: string | DataView | null = null): Promise<Message> {
+  async sendReceive(cmd: string, data: string | BufferSource | null = null): Promise<Message> {
     await this.send(cmd, data);
-    return await this.receive(); 
+    return await this.receive();
   }
 
   async abort(): Promise<void> {
     if (options.debug) {
       console.log('aborting...');
 
-      // The cancel function is invoked when the stream is cancelled. 
+      // The cancel function is invoked when the stream is cancelled.
       this.cancel = async (): Promise<void> => {
         if (options.debug) {
           console.log('aborted');
@@ -85,12 +88,12 @@ export default class Stream {
 
   async stat(filename: string): Promise<StatResult> {
     const frame = new SyncFrame('STAT', filename.length);
-    let response = await frame.sendReceive(this);
-    response.checkOk(`STAT failed on ${filename}`);
+    let response: Message | SyncFrame = await frame.sendReceive(this);
+    checkOk(response, `STAT failed on ${filename}`);
 
     const encoder = new TextEncoder();
-    response = await this.sendReceive('WRTE', new DataView(encoder.encode(filename)));
-    response.checkOk(`STAT failed on ${filename}`);
+    response = await this.sendReceive('WRTE', encoder.encode(filename));
+    checkOk(response, `STAT failed on ${filename}`);
     response = await this.receive();
     await this.send('OKAY');
 
@@ -99,10 +102,10 @@ export default class Stream {
     }
 
     const data = response.data;
-    let id = decodeCmd(data.getUint32(0, true));
-    let mode = data.getUint32(4, true);
-    let size = data.getUint32(8, true);
-    let time = data.getUint32(12, true);
+    const id = decodeCmd(data.getUint32(0, true));
+    const mode = data.getUint32(4, true);
+    const size = data.getUint32(8, true);
+    const time = data.getUint32(12, true);
 
     if (options.debug) {
       console.log(`STAT: ${filename}`);
@@ -112,33 +115,33 @@ export default class Stream {
       console.log(`time: ${time}`);
     }
 
-    if (id != `STAT`) {
+    if (id !== `STAT`) {
       throw new Error(`STAT failed on ${filename}`);
     }
 
     return {
-      mode: mode,
-      size: size,
-      time: time
-    };    
+      mode,
+      size,
+      time
+    };
   }
 
   async pull(filename: string): Promise<DataView> {
     const frame = new SyncFrame('RECV', filename.length);
-    let response;
-    try {      
+    let response: Message | SyncFrame;
+    try {
       response = await frame.sendReceive(this);
-      response.checkOk(`PULL RECV failed on ${filename}`);
+      checkOk(response, `PULL RECV failed on ${filename}`);
 
       const encoder = new TextEncoder();
-      response = await this.sendReceive('WRTE', new DataView(encoder.encode(filename)));
-      response.checkOk(`PULL WRTE failed on ${filename}`);
+      response = await this.sendReceive('WRTE', encoder.encode(filename));
+      checkOk(response, `PULL WRTE failed on ${filename}`);
 
       response = await SyncFrame.receive(this);
-      response.checkCmd('DATA', `PULL DATA failed on ${filename}`);
+      checkCmd(response, 'DATA', `PULL DATA failed on ${filename}`);
     } catch (err) {
       await this.send('OKAY');
-      throw err;      
+      throw err;
     }
     await this.send('OKAY');
 
@@ -146,26 +149,26 @@ export default class Stream {
       throw new Error('response.data is not a DataView instance');
     }
 
-    let len = response.length;
-    if (response.data.byteLength == len + 8) {
-      let cmd = response.data.getUint32(len, true);
-      let zero = response.data.getUint32(len + 4, true);
-      if (decodeCmd(cmd) != 'DONE' || zero != 0)
+    const len = response.length;
+    if (response.data.byteLength === len + 8) {
+      const cmd = response.data.getUint32(len, true);
+      const zero = response.data.getUint32(len + 4, true);
+      if (decodeCmd(cmd) !== 'DONE' || zero !== 0)
         throw new Error(`PULL DONE failed on ${filename}`);
 
       return new DataView(response.data.buffer, 0, len);
     }
 
     if (response.data.byteLength > 64 * 1024) {
-      let cmd = response.data.getUint32(response.data.byteLength - 8, true);
-      let zero = response.data.getUint32(response.data.byteLength - 4, true);
-      if (decodeCmd(cmd) != 'DONE' || zero != 0)
+      const cmd = response.data.getUint32(response.data.byteLength - 8, true);
+      const zero = response.data.getUint32(response.data.byteLength - 4, true);
+      if (decodeCmd(cmd) !== 'DONE' || zero !== 0)
         throw new Error(`PULL DONE failed on ${filename}`);
 
       return new DataView(response.data.buffer, 0, response.data.byteLength - 8);
     }
 
-    if (response.data.byteLength != len) {
+    if (response.data.byteLength !== len) {
       throw new Error(`PULL DATA failed on ${filename}: ${response.data.byteLength}!=${len}`);
     }
 
@@ -176,16 +179,114 @@ export default class Stream {
       throw new Error('response.data is not a DataView instance');
     }
 
-    let cmd = response.data.getUint32(0, true);
-    let zero = response.data.getUint32(4, true);
-    if (decodeCmd(cmd) != 'DONE' || zero != 0) {
-      throw new Error(`PULL DONE failed on ${filename}`);    
+    const cmd = response.data.getUint32(0, true);
+    const zero = response.data.getUint32(4, true);
+    if (decodeCmd(cmd) !== 'DONE' || zero !== 0) {
+      throw new Error(`PULL DONE failed on ${filename}`);
     }
     await this.send('OKAY');
     return response.data;
   }
 
-  static async open(device: Device, service: any): Promise<Stream> {
+  async pushStart(filename: string, mode: Mode): Promise<void> {
+    const modeStr = mode.toString();
+    const encoder = new TextEncoder();
+
+    const frame = new SyncFrame('SEND', filename.length + 1 + modeStr.length);
+    let response = await frame.sendReceive(this);
+    checkOk(response, `PUSH failed on ${filename}`);
+
+    await this.send('WRTE', encoder.encode(filename));
+    response = await SyncFrame.receive(this);
+    checkOk(response, `PUSH failed on ${filename}`);
+
+    await this.send('WRTE', encoder.encode(`,${modeStr}`));
+    response = await SyncFrame.receive(this);
+    checkOk(response, `PUSH failed on ${filename}`);
+  }
+
+  async pushData(data: BufferSource | string): Promise<void> {
+    let newdata: ArrayBuffer;
+    if (typeof data === 'string') {
+			const encoder = new TextEncoder();
+			const stringData = data;
+			newdata = encoder.encode(stringData).buffer;
+		} else if (ArrayBuffer.isView(data)) {
+			newdata = data.buffer;
+    } else {
+      newdata = data;
+    }
+    const frame = new SyncFrame('DATA', newdata.byteLength);
+    let response = await frame.sendReceive(this);
+    checkOk(response, 'PUSH failed');
+    await this.send('WRTE', newdata);
+    response = await SyncFrame.receive(this);
+    checkOk(response, 'PUSH failed');
+  }
+
+  async pushDone(): Promise<void> {
+    const frame = new SyncFrame('DONE', Math.round(Date.now() / 1000));
+    let response = await frame.sendReceive(this);
+    checkOk(response, 'PUSH failed');
+    response = await SyncFrame.receive(this);
+    checkOk(response, 'PUSH failed');
+    await this.send('OKAY');
+  }
+
+  async push(file: Blob, filename: string, mode: Mode,
+        onProgress: ((count: number, size: number) => void) | null = null) {
+    // TODO(andreban): we need reduced logging during the data transfer otherwise the console may
+    // explode
+    //
+		// let old_debug = Adb.Opt.debug;
+		// let old_dump = Adb.Opt.dump;
+		// Adb.Opt.debug = false;
+    // Adb.Opt.dump = false;
+
+    // read the whole file
+    const data = await Stream.readBlob(file);
+
+    // Should never happen
+    if (!(data instanceof ArrayBuffer)) {
+      throw new Error('data is not an ArrayBuffer');
+    }
+
+    await this.pushStart(filename, mode);
+
+    let rem = file.size;
+    const max = Math.min(0x10000, this.device.maxPayload);
+    while (rem > 0) {
+      // these two are needed here for the closure
+      const len = Math.min(rem, max);
+      const count = file.size - rem;
+      if (this.cancel) {
+        // Adb.Opt.debug = old_debug;
+        // Adb.Opt.dump = old_dump;
+        this.cancel();
+        throw new Error('cancelled');
+      }
+      if (onProgress != null) {
+        onProgress(count, file.size);
+      }
+      await this.pushData(data.slice(count, count + len));
+      rem -= len;
+    }
+
+    // Adb.Opt.debug = old_debug;
+    // Adb.Opt.dump = old_dump;
+    await this.pushDone();
+  }
+
+  async quit(): Promise<void> {
+    const frame = new SyncFrame('QUIT');
+    let response: Message | SyncFrame = await frame.sendReceive(this);
+    checkOk(response, 'QUIT failed');
+    response = await this.receive();
+    checkCmd(response, 'CLSE', 'QUIT failed');
+    await this.close();
+  }
+
+  static async open(device: AdbDevice, service: string): Promise<Stream> {
     const localId = this.nextId++;
     let remoteId = 0;
     const m = new Message('OPEN', localId, remoteId, '' + service + '\0');
@@ -211,5 +312,20 @@ export default class Stream {
     };
 
     return await doResponse(response);
+  }
+
+  static readBlob(blob: Blob): Promise<ArrayBuffer | string | null> {
+    return new Promise<ArrayBuffer | string | null>((resolve, reject) => {
+			const reader = new FileReader();
+      reader.onload = e => {
+        if (e.target === null) {
+          reject(new Error('onload returned null'));
+          return;
+        }
+        resolve(e.target.result);
+      };
+			reader.onerror = e => reject(e.target?.error);
+			reader.readAsArrayBuffer(blob);
+		});
   }
 }

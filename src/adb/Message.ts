@@ -1,8 +1,11 @@
-import Device from "./Device";
+import Device from './Device';
 import {encodeCmd, decodeCmd} from './Helpers';
 import {Options, DEFAULT_OPTIONS} from './Options';
+import AdbDevice from './adb/AdbDevice';
 
 const options: Options = DEFAULT_OPTIONS;
+
+export type MessagePayload = string | BufferSource | DataView | null;
 
 export default class Message {
   readonly length: number;
@@ -10,49 +13,30 @@ export default class Message {
       readonly cmd: string,
       readonly arg0: number,
       readonly arg1: number,
-      readonly data: string | DataView | null = null) {
-    this.length = (data == null) ? 0 : (typeof data === 'string') ? data.length : data.byteLength;
+      readonly data?: MessagePayload) {
+    this.length = (!data) ? 0 : (typeof data === 'string') ? data.length : data.byteLength;
   }
-  
+
   async send(device: Device): Promise<void> {
     return await Message.send(device, this);
   }
 
-  async sendReceive(device: Device): Promise<Message> {
+  async sendReceive(device: AdbDevice): Promise<Message> {
     await this.send(device);
     return await Message.receive(device);
   }
 
-  dataAsString(): string | null{
+  dataAsDataView(): DataView {
     if (!this.data) {
-      return null;
+      throw new Error('data is null');
     }
 
-    if (typeof this.data === 'string') {
-      return this.data;
+    if (!(this.data instanceof DataView)) {
+      throw new Error('data is not a DataView');
     }
 
-    const decoder = new TextDecoder();
-    return decoder.decode(this.data);
+    return this.data;
   }
-
-  checkOk(errorMessage: string): void {
-    return this.checkCmd('OKAY', errorMessage); 
-  }
-
-  checkCmd(expectedCmd: string, errorMessage: string): void {
-    if (this.cmd === 'FAIL') {
-      let errorMessage = this.dataAsString();
-      if (errorMessage === null) {
-        errorMessage = 'Received FAIL message';
-      }
-      throw new Error(errorMessage);
-    }
-
-    if (this.cmd != expectedCmd) {
-      throw new Error(errorMessage);
-    }
-  }  
 
   static checksum(dataView: DataView): number {
     let sum = 0;
@@ -71,7 +55,7 @@ export default class Message {
     let checksum = 0;
     if (message.data != null) {
 			if (typeof message.data === 'string') {
-				let encoder = new TextEncoder();
+				const encoder = new TextEncoder();
 				data = encoder.encode(message.data).buffer;
 			} else if (ArrayBuffer.isView(message.data)) {
 				data = message.data.buffer;
@@ -83,7 +67,7 @@ export default class Message {
 			if (options.useChecksum) {
         checksum = Message.checksum(new DataView(data));
       }
-              
+
       if (len > device.maxPayload) {
         throw new Error(`data is too big: ${len} bytes (max: ${device.maxPayload} bytes)`);
       }
@@ -101,10 +85,10 @@ export default class Message {
 		if (len > 0 && data !== null) {
       await device.send(data);
     }
-		return seq;    
+		return seq;
   }
 
-  static async receive(device: Device): Promise<Message> {
+  static async receive(device: AdbDevice): Promise<Message> {
     const response = await device.receive(24); // options.useChecksum ? 24 : 20)
     const cmd = response.getUint32(0, true);
     const arg0 = response.getUint32(4, true);
@@ -114,29 +98,29 @@ export default class Message {
 
      // Android seems to have stopped providing checksums
     if (options.useChecksum && response.byteLength > 20) {
-      let magic = response.getUint32(20, true);
+      const magic = response.getUint32(20, true);
 
-      if ((cmd ^ magic) != -1) {
+      if ((cmd ^ magic) !== -1) {
         throw new Error('magic mismatch');
       }
-    } 
-   
-    const decodedCmd = decodeCmd(cmd);    
-    if (len == 0) {
-      let message = new Message(decodedCmd, arg0, arg1);
+    }
+
+    const decodedCmd = decodeCmd(cmd);
+    if (len === 0) {
+      const message = new Message(decodedCmd, arg0, arg1);
       if (options.debug) {
         console.log(message);
       }
       return message;
     }
 
-    const data = await device.receive(len); 
+    const data = await device.receive(len);
 
-    if (options.useChecksum && Message.checksum(data) != check) {
+    if (options.useChecksum && Message.checksum(data) !== check) {
       throw new Error('checksum mismatch');
     }
 
-    let message = new Message(decodedCmd, arg0, arg1, data);
+    const message = new Message(decodedCmd, arg0, arg1, data);
     if (options.debug) {
       console.log(message);
     }
