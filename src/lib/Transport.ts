@@ -80,6 +80,11 @@ export default class Transport {
 		return match != null;
   };
 
+  /**
+   * ADB protocol documentation
+   * 
+   * https://android.googlesource.com/platform/system/core/+/master/adb/protocol.txt
+   */
   async connectAdb(banner: string, authUserNotify?: authUserNotify): Promise<AdbDevice> {
     const VERSION = 0x01000000;
 		const VERSION_NO_CHECKSUM = 0x01000001;
@@ -100,12 +105,20 @@ export default class Transport {
     const adb = new AdbDevice(this, match);
     let response = await m.sendReceive(adb);
 
+    // Response to connect must be CNXN or AUTH. Ignore different responses until the right one
+    // arrives.
+    while (response.cmd !== 'CNXN' && response.cmd !== 'AUTH') {
+      console.log(`Received Message '${response.cmd}'. Ignoring`);
+      response = await Message.receive(adb);
+    }
+
+    console.log(`Received Message '${response.cmd}'`);
+
     const doAuthResponse = async (response: Message): Promise<Message> => {
       if (response.cmd !== 'AUTH' || response.arg0 !== AUTH_TOKEN) {
         return response;
       }
 
-      const keys = await this.keyStore.loadKeys();
       return await Transport.doAuth(adb, this.keyStore, keyIdx++, response.dataAsDataView().buffer,
           doAuthResponse, authUserNotify);
     };

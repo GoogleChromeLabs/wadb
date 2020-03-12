@@ -26,6 +26,19 @@ export default class Message {
     return await Message.receive(device);
   }
 
+  dataAsString(): string | null {
+    if (!this.data) {
+      return null;
+    }
+
+    if (typeof this.data === 'string') {
+      return this.data;
+    }
+
+    const decoder = new TextDecoder();
+    return decoder.decode(this.data);
+  }
+
   dataAsDataView(): DataView {
     if (!this.data) {
       throw new Error('data is null');
@@ -47,6 +60,9 @@ export default class Message {
   }
 
   static async send(device: Device, message: Message): Promise<void> {
+    if(options.debug) {
+      console.log('Sending Message: ', message);
+    }
     const header = new ArrayBuffer(24);
     const cmd = encodeCmd(message.cmd);
     const magic = cmd ^ 0xffffffff;
@@ -109,7 +125,7 @@ export default class Message {
     if (len === 0) {
       const message = new Message(decodedCmd, arg0, arg1);
       if (options.debug) {
-        console.log(message);
+        console.log('Received Message: ', message);
       }
       return message;
     }
@@ -122,7 +138,7 @@ export default class Message {
 
     const message = new Message(decodedCmd, arg0, arg1, data);
     if (options.debug) {
-      console.log(message);
+      console.log('Received Message: ', message);
     }
     return message;
   }

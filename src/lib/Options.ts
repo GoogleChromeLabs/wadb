@@ -8,7 +8,7 @@ export interface Options {
 
 export const DEFAULT_OPTIONS: Options = {
   useChecksum: true,
-  debug: false,
+  debug: true,
   dump: false,
   reuseKey: false,
   keySize: 2048,
