@@ -97,11 +97,10 @@ export default class Message {
 		view.setUint32(16, checksum, true);
 		view.setUint32(20, magic, true);
 
-		const seq = await device.send(header);
+    await device.send(header);
 		if (len > 0 && data !== null) {
       await device.send(data);
     }
-		return seq;
   }
 
   static async receive(device: AdbDevice): Promise<Message> {

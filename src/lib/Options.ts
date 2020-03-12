@@ -7,7 +7,7 @@ export interface Options {
 }
 
 export const DEFAULT_OPTIONS: Options = {
-  useChecksum: true,
+  useChecksum: false,
   debug: true,
   dump: false,
   reuseKey: false,
