@@ -2,6 +2,13 @@
 
 ## Connecting to a device
 ```typescript
+  const options: Options = {
+    debug: true,
+    useChecksum: false,
+    dump: false,
+    keySize: 2048,
+  };
+
   const transport = await Transport.open(options);
   const adbClient = new AdbClient(transport, options, keyStore);
   await adbClient.connect();
