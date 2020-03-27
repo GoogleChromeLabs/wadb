@@ -1,21 +1,18 @@
-import Message, { MessagePayload } from './Message';
-import SyncFrame from './SyncFrame';
-import { getOptions } from './Options';
-
-export function encodeCmd(cmd: string): number {
-  const encoder = new TextEncoder();
-  const buffer = encoder.encode(cmd).buffer;
-  const view = new DataView(buffer);
-  return view.getUint32(0, true);
-}
-
-export function decodeCmd(cmd: number): string {
-  const decoder = new TextDecoder();
-  const buffer = new ArrayBuffer(4);
-  const view = new DataView(buffer);
-  view.setUint32(0, cmd, true);
-  return decoder.decode(buffer);
-}
+/*
+ * Copyright 2020 Google Inc. All Rights Reserved.
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
 
 export function toHex8(num: number) {
   return paddit(num.toString(16), 2, '0');
@@ -49,37 +46,6 @@ export function hexdump(view: DataView, prefix: string = '') {
   }
 }
 
-export function checkOk(response: Message | SyncFrame, errorMessage: string): void {
-  return checkCmd(response, 'OKAY', errorMessage);
-}
-
-export function checkCmd(
-      response: Message | SyncFrame, expectedCmd: string, errorMessage: string): void {
-  if (response.cmd === 'FAIL') {
-    errorMessage = dataAsString(response.data);
-    throw new Error(errorMessage);
-  }
-
-  if (response.cmd !== expectedCmd) {
-    throw new Error(errorMessage);
-  }
-}
-
-export function getEndpointNum(
-      endpoints: USBEndpoint[], dir: 'in' | 'out', type: string = 'bulk'): number {
-  for(const ep of endpoints) {
-    if (ep.direction === dir && ep.type === type) {
-      return ep.endpointNumber;
-    }
-  }
-
-  if (getOptions().debug) {
-    console.log(endpoints);
-  }
-
-  throw new Error(`Cannot find ${dir} endpoint`);
-}
-
 export async function privateKeyDump(key: CryptoKeyPair): Promise<void> {
   if (!key.privateKey.extractable) {
     console.log('cannot dump the private key, it\'s not extractable');
@@ -104,25 +70,13 @@ export function toB64(buffer: ArrayBuffer) {
   return btoa(new Uint8Array(buffer).reduce((s, b) => s + String.fromCharCode(b), ''));
 }
 
-function dataAsString(data?: MessagePayload): string {
-  if (!data) {
-    return '<No data>';
-  }
-
-  if (typeof data === 'string') {
-    return data;
-  }
-
-  const decoder = new TextDecoder();
-  return decoder.decode(data);
-}
-
 function paddit(text: string, width: number, padding: string) {
   const padlen = width - text.length;
   let padded = '';
 
-  for (let i = 0; i < padlen; i++)
+  for (let i = 0; i < padlen; i++) {
       padded += padding;
+    }
 
   return padded + text;
 }

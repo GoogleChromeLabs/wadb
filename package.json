@@ -6,7 +6,7 @@
   "scripts": {
     "lint": "tslint \"src/**/*.ts\"",
     "build": "tsc",
-    "package": "rollup dist/main.js --file dist/bundle.js --format umd --name \"myBundle\" -m"
+    "package": "rollup dist/main.js --file dist/bundle.js --format umd --name \"main\" -m"
   },
   "author": "",
   "license": "ISC",

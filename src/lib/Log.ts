@@ -14,7 +14,16 @@
  *  limitations under the License.
  */
 
-export interface KeyStore {
-  loadKeys(): Promise<CryptoKeyPair[]>;
-  saveKey(key: CryptoKeyPair): Promise<void>;
+export default class Log {
+  debug(message: string) {
+    console.log(message);
+  }
+
+  info(message: string) {
+    console.info(message);
+  }
+
+  error(message: string) {
+    console.error(message);
+  }
 }
