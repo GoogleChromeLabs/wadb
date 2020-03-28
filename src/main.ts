@@ -58,7 +58,7 @@ connectButton.addEventListener('click', async (_) => {
     adbClient = new AdbClient(transport, options, keyStore);
 
     const adbConnectionInformation = await adbClient.connect();
-    console.log('Connected: ', adbConnectionInformation);    
+    console.log('Connected: ', adbConnectionInformation);
 
     disconnectButton.removeAttribute('disabled');
     startButton.removeAttribute('disabled');
@@ -99,7 +99,7 @@ let shell: Stream | null = null;
 startButton.addEventListener('click', async() => {
   shell = await Stream.open(adbClient!, `shell:screenrecord ${RECORD_FILE_NAME}`, options);
   startButton.setAttribute('disabled', '');
-  stopButton.removeAttribute('disabled');  
+  stopButton.removeAttribute('disabled');
 });
 
 stopButton.addEventListener('click', async() => {
@@ -110,8 +110,8 @@ stopButton.addEventListener('click', async() => {
   console.log(message);
   await shell!.write('OKAY');
 
-  // Trying to load the file straight away results in a broken file. 
-  // Waiting for a couple of seconds fixes it. Maybe send STAT before 
+  // Trying to load the file straight away results in a broken file.
+  // Waiting for a couple of seconds fixes it. Maybe send STAT before
   // attempting download.
   setTimeout(async () => {
     console.log('Starting ADB Pull');
@@ -122,7 +122,7 @@ stopButton.addEventListener('click', async() => {
     video!.src = videoSrc;
     download!.href = videoSrc;
     stopButton.setAttribute('disabled', '');
-    startButton.removeAttribute('disabled');        
+    startButton.removeAttribute('disabled');
   }, 2000);
 });
 

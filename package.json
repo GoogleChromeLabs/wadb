@@ -6,13 +6,15 @@
   "scripts": {
     "lint": "tslint \"src/**/*.ts\"",
     "build": "tsc",
-    "package": "rollup dist/main.js --file dist/bundle.js --format umd --name \"main\" -m"
+    "package": "rollup --config \"./rollup.config.js\" -m",
+    "serve": "serve"
   },
-  "author": "",
-  "license": "ISC",
+  "author": "André Cipriani Bandarra",
+  "license": "Apache-2.0",
   "devDependencies": {
     "@types/w3c-web-usb": "^1.0.4",
     "rollup": "^2.0.3",
+    "serve": "^11.3.0",
     "tslint": "^6.0.0",
     "typescript": "^3.8.3"
   }

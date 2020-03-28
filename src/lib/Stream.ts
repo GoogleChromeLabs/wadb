@@ -56,7 +56,7 @@ export default class Stream {
       throw new Error(
         `Incorrect arg1: 0x${toHex32(header.arg1)} (expected 0x${toHex32(this.localId)})`
       );
-    }    
+    }
     return header;
   }
 
@@ -83,7 +83,7 @@ export default class Stream {
   }
 
   /**
-   * 
+   *
    * Retrieves a file from device to a local file. The remote path is the path to
    * the file that will be returned. Just as for the SEND sync request the file
    * received is split up into chunks. The sync response id is "DATA" and length is
@@ -99,7 +99,7 @@ export default class Stream {
     // Sends RECV with filename length.
     const recvFrame = new SyncFrame('RECV', encodedFilename.byteLength);
     const wrteRecvMessage = this.newMessage('WRTE', recvFrame.toDataView());
-    console.log('>>>', wrteRecvMessage);    
+    console.log('>>>', wrteRecvMessage);
     await this.client.sendMessage(wrteRecvMessage);
     const wrteRecvResponse = await this.read();
     console.log('<<<', wrteRecvResponse);
@@ -126,25 +126,25 @@ export default class Stream {
     console.log('<<<', fileDataMessage);
 
     console.log('>>>', okayMessage);
-    await this.client.sendMessage(okayMessage);        
+    await this.client.sendMessage(okayMessage);
 
-    let syncFrame = SyncFrame.fromDataView(new DataView(fileDataMessage.data!.buffer.slice(0, 8)));    
+    let syncFrame = SyncFrame.fromDataView(new DataView(fileDataMessage.data!.buffer.slice(0, 8)));
     let buffer = new Uint8Array(fileDataMessage.data!.buffer.slice(8));
-    const chunks: Array<ArrayBuffer> = [];
+    const chunks: ArrayBuffer[] = [];
     while (syncFrame.cmd !== 'DONE') {
       console.log(syncFrame);
       while (syncFrame.byteLength >= buffer.byteLength) {
         fileDataMessage = await this.read();
         console.log('<<<', fileDataMessage);
         console.log('>>>', okayMessage);
-        await this.client.sendMessage(okayMessage);            
+        await this.client.sendMessage(okayMessage);
 
         // Join both arrays
         const newLength = buffer.byteLength + fileDataMessage.data!.byteLength;
         const newBuffer = new Uint8Array(newLength);
         newBuffer.set(buffer, 0);
         newBuffer.set(new Uint8Array(fileDataMessage.data!.buffer), buffer.byteLength);
-        buffer = newBuffer;        
+        buffer = newBuffer;
       }
       chunks.push(buffer.slice(0, syncFrame.byteLength).buffer);
       buffer = buffer.slice(syncFrame.byteLength);
@@ -152,7 +152,7 @@ export default class Stream {
       buffer = buffer.slice(8);
     }
     return new Blob(chunks);
-  }  
+  }
 
   private newMessage(cmd: string, data?: DataView): Message {
     return Message.newMessage(

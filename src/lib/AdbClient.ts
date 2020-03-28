@@ -90,7 +90,7 @@ export default class AdbClient {
 
   async sync(): Promise<Stream> {
     return await Stream.open(this, 'sync:', this.options);
-  }  
+  }
 
   async pull(filename: string): Promise<Blob> {
     const syncStream = await this.sync();

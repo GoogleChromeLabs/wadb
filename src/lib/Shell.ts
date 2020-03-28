@@ -15,26 +15,23 @@
  */
 
 import Stream from './Stream';
+import {Message} from './Message';
 
 type callbackFunction = (text: string) => void;
 
 export default class Shell {
   private textDecoder = new TextDecoder();
   private textEncoder = new TextEncoder();
-  private readClosed: Promise<void>;
-  private okayReceived?: Promise<void>;
+  private messageListener: ((message: Message) => void)[] = [];
 
   constructor(readonly stream: Stream, readonly calbackFunction?: callbackFunction) {
-    this.readClosed = this.loopRead();
+    this.loopRead();
   }
 
   private async loopRead() {
     let message;
     do {
       message = await this.stream.read();
-      if (message.header.cmd === 'OKAY') {
-        console.log('OKAY');
-      }
 
       if (message.header.cmd === 'WRTE') {
         this.stream.write('OKAY');
@@ -43,21 +40,36 @@ export default class Shell {
           this.calbackFunction(data);
         }
       }
+
+      // Resolve Messages waiting for this event
+      for (const listener of this.messageListener) {
+        listener(message);
+      }
+
     } while (message.header.cmd !== 'CLSE')
+  }
+
+  private waitForMessage(cmd: string): Promise<Message> {
+    return new Promise<Message>(resolve => {
+      const callback = (message: Message) => {
+        if (message.header.cmd === 'OK') {
+          const pos = this.messageListener.indexOf(callback);
+          this.messageListener.splice(pos, 1);
+          resolve(message);
+        }
+      };
+      this.messageListener.push(callback);
+    });
   }
 
   async write(command: string) {
     const data = this.textEncoder.encode(command);
     await this.stream.write('WRTE', new DataView(data.buffer));
-    // this.okayReceived = new Promise((resolve, reject) => {
-
-    // });
-    // await this.okayReceived;    
-
+    await this.waitForMessage('OKAY');
   }
 
   async close() {
     await this.stream.close();
-    await this.readClosed;
+    await this.waitForMessage('CLSE');
   }
 }
