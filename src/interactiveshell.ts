@@ -23,7 +23,7 @@ import Shell from './lib/Shell';
 const connectButton = document.querySelector('#connect')!;
 const disconnectButton = document.querySelector('#disconnect')!;
 const output = document.querySelector('#output')!;
-const input: HTMLInputElement = document.querySelector('#input')! as HTMLInputElement;
+const input = (document.querySelector('#input') as HTMLInputElement)!;
 
 class MyKeyStore implements KeyStore {
   private keys: CryptoKeyPair[] = [];
@@ -54,6 +54,11 @@ function appendToCode(text: string) {
   const span = document.createElement('span');
   span.innerText = text;
   output.appendChild(span);
+  output.scrollTop = output.scrollHeight;
+}
+
+function sendCommand(cmd: string) {
+  shell!.write(input.value + '\n');
 }
 
 connectButton.addEventListener('click', async () => {
@@ -83,9 +88,16 @@ disconnectButton.addEventListener('click', async () => {
   connectButton.removeAttribute('disabled');
 });
 
-input.addEventListener('keyup', async (e) => {
-  if (e.keyCode === 13) {
-    shell?.write(input.value);
-    input.value = '';
+input.addEventListener('keyup', (e) => {
+  if (!shell) {
+    return;
   }
+
+  if (e.keyCode === 13) {
+    e.preventDefault();
+    sendCommand(input.value + '\n');
+    input.value = '';
+    return false;
+  }
+  return true;
 });

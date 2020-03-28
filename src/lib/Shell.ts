@@ -24,7 +24,7 @@ export default class Shell {
   private textEncoder = new TextEncoder();
   private messageListener: ((message: Message) => void)[] = [];
 
-  constructor(readonly stream: Stream, readonly calbackFunction?: callbackFunction) {
+  constructor(readonly stream: Stream, readonly callbackFunction?: callbackFunction) {
     this.loopRead();
   }
 
@@ -36,8 +36,8 @@ export default class Shell {
       if (message.header.cmd === 'WRTE') {
         this.stream.write('OKAY');
         const data = this.textDecoder.decode(message.data!);
-        if (this.calbackFunction) {
-          this.calbackFunction(data);
+        if (this.callbackFunction) {
+          this.callbackFunction(data);
         }
       }
 
@@ -52,7 +52,7 @@ export default class Shell {
   private waitForMessage(cmd: string): Promise<Message> {
     return new Promise<Message>(resolve => {
       const callback = (message: Message) => {
-        if (message.header.cmd === 'OK') {
+        if (message.header.cmd === cmd) {
           const pos = this.messageListener.indexOf(callback);
           this.messageListener.splice(pos, 1);
           resolve(message);
