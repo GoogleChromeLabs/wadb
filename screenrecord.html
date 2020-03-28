@@ -4,10 +4,33 @@
     <meta name="viewport" content="initial-scale=1, maximum-scale=1">
     <script src="dist/bundle.js" defer></script>
     <style>
+      html {
+        font-family: 'Roboto', sans-serif;
+        background-color: lightsteelblue;
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+      }
+
+      h1 {
+        height: 56px;
+        margin: 0;
+        padding: 8px 16px;
+        background-color: #789ac7;
+        box-sizing: border-box;
+        box-shadow: 0px 2px 4px #999999;
+      }
+
+      h2 {
+        margin: 16px 0 8px 0;
+      }
+
       video {
         background-color: darkgrey;
         max-width: 100%;
-        max-height: 65vh;
+        max-height: 60vh;
         display: block;
       }
       
@@ -17,34 +40,110 @@
       }
 
       .content-wrapper {
-        max-width: 500px;
-        margin: 0 auto;
+        padding: 0 16px;
+      }
+
+      .buttons {
+        height: 30px;
+      }
+
+      .button {
+        width: 145px;
+        height: 30px;
+        text-transform: uppercase;
+        padding-left: 20px;
+      }
+
+      #connect {
+        background-image: url(./assets/phonelink.svg);
+        background-repeat: no-repeat;
+        background-position-x: 4px;
+        background-position-y: 2px;   
+      }
+
+      #disconnect {
+        background-image: url(./assets/phonelink_off.svg);
+        background-repeat: no-repeat;
+        background-position-x: 4px;
+        background-position-y: 2px;
+      }
+
+      #start {
+        background-image: url(./assets/video-start.svg);
+        background-repeat: no-repeat;
+        background-position-x: 4px;
+        background-position-y: 0px;
+      }
+
+      #stop {
+        background-image: url(./assets/video-stop.svg);
+        background-repeat: no-repeat;
+        background-position-x: 4px;
+        background-position-y: 0px;
+      }
+
+      #screencapture {
+        background-image: url(./assets/screenshot.svg);
+        background-repeat: no-repeat;
+        background-position-x: 4px;
+        background-position-y: 0px;        
+      }
+
+      {# #download {
+        background-image: url(./assets/save.svg);
+        background-repeat: no-repeat;
+        background-position-x: 4px;
+        background-position-y: 0px;
+        text-decoration: none;
+        color: black;
+        background-color: lightgrey;
+        width: 14px;
+      } #}
+
+      #screenshot {
+        max-width: 100%;
+        max-height: 60vh;
       }
 
       .hidden {
         display: none;
       }
+
+      .status {
+        height: 28px;
+        background-color: steelblue;
+        font-size: 12px;
+        box-sizing: border-box;
+        padding-top: 6px;
+        text-transform: uppercase;
+        margin-bottom: 16px;        
+      }
     </style>
   </head>
   <body>
+    <h1>WebADB Screenrecord</h1>
+    <div id="status" class="content-wrapper status">
+      Connect to a device to start
+    </div>    
     <div class="content-wrapper">
-      <h1>WebADB Screenrecord</h1>
-      <div>
-        <button id="connect">Connect</button>
-        <button id="disconnect" disabled>Disconnect</button>
+      <div class="buttons">
+        <button id="connect" class="button">Connect</button>
+        <button id="disconnect" class="button hidden">Disconnect</button>
       </div>
       <div>
-        <h2>Screenrecord</h2>
-        <button id="start" disabled>Start Recording</button>
-        <button id="stop" disabled>Stop Recording</button>
-        <button id="pull" hidden>Pull</button>
+        <h2>Controls</h2>
+        <div class="buttons">
+          <button id="start" class="button">Record</button>
+          <button id="stop" class="button hidden">Stop</button>
+          <button id="screencapture" class="button">Screenshot</button>
+        </div>
       </div>
       <div class="video-container">
-        <h2>Video:</h2>
-        <video id="video" controls>
-
-        </video>
-        <a id="download" href="" download="recording.mp4">Download Video</a>
+        <h2>Output:</h2>
+          <video id="video" controls class="hidden"></video>
+          <img id="screenshot" class="hidden"></img>
+          <br/>
+          <a id="download" class='hidden' href="#" download="recording.mp4">Download</a>          
       </div>
   </div>
   </body>

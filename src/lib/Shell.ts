@@ -29,24 +29,28 @@ export default class Shell {
   }
 
   private async loopRead() {
-    let message;
-    do {
-      message = await this.stream.read();
+    try {
+      let message;
+      do {
+        message = await this.stream.read();
 
-      if (message.header.cmd === 'WRTE') {
-        this.stream.write('OKAY');
-        const data = this.textDecoder.decode(message.data!);
-        if (this.callbackFunction) {
-          this.callbackFunction(data);
+        if (message.header.cmd === 'WRTE') {
+          this.stream.write('OKAY');
+          const data = this.textDecoder.decode(message.data!);
+          if (this.callbackFunction) {
+            this.callbackFunction(data);
+          }
         }
-      }
 
-      // Resolve Messages waiting for this event
-      for (const listener of this.messageListener) {
-        listener(message);
-      }
+        // Resolve Messages waiting for this event
+        for (const listener of this.messageListener) {
+          listener(message);
+        }
 
-    } while (message.header.cmd !== 'CLSE')
+      } while (message.header.cmd !== 'CLSE')
+    } catch(e) {
+      console.error('loopRead crashed', e);
+    }
   }
 
   private waitForMessage(cmd: string): Promise<Message> {

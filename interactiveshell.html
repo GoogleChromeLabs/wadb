@@ -56,15 +56,43 @@
       code > span {
         display: block;
       }
+
+      .buttons {
+        height: 30px;
+      }
+
+      .button {
+        width: 130px;
+        height: 30px;
+        text-transform: uppercase;
+        padding-left: 20px;
+      }
+
+      #connect {
+        background-image: url(./assets/phonelink.svg);
+        background-repeat: no-repeat;
+        background-position-x: 4px;
+        background-position-y: 2px;   
+      }
+
+      #disconnect {
+        background-image: url(./assets/phonelink_off.svg);
+        background-repeat: no-repeat;
+        background-position-x: 4px;
+        background-position-y: 2px;
+      }
+
+      .hidden {
+        display: none;
+      }
     </style>
-    <script src="dist/interactiveshell-bundle.js" defer></script>
   </head>
   <body>
     <h1>WebADB Shell</h1>
     <div class="content-wrapper">
-      <div>
-        <button id="connect">Connect</button>
-        <button id="disconnect" disabled>Disconnect</button>
+      <div class="buttons">
+        <button id="connect" class="button">Connect</button>
+        <button id="disconnect" class="button hidden">Disconnect</button>
       </div>
       <div>
         <h2>Console</h2>

@@ -27,9 +27,11 @@ const connectButton = document.querySelector('#connect')!;
 const disconnectButton = document.querySelector('#disconnect')!;
 const startButton = document.querySelector('#start')!;
 const stopButton = document.querySelector('#stop')!;
-const video: HTMLVideoElement | null = document.querySelector('#video');
-const download: HTMLAnchorElement | null = document.querySelector('#download');
-const pullButton = document.querySelector('#pull');
+const screenshotButton = document.querySelector('#screencapture')!;
+const video: HTMLVideoElement = (document.querySelector('#video') as HTMLVideoElement)!;
+const screenshot = (document.querySelector('#screenshot') as HTMLImageElement)!;
+const download = (document.querySelector('#download') as HTMLAnchorElement)!;
+const status = document.querySelector('#status')!;
 
 const options: Options = {
   debug: true,
@@ -57,16 +59,16 @@ connectButton.addEventListener('click', async (_) => {
     transport = await Transport.open(options);
     adbClient = new AdbClient(transport, options, keyStore);
 
+    status.textContent = 'Accept prompt on device';
     const adbConnectionInformation = await adbClient.connect();
+    status.textContent = 'Connected and ready';
     console.log('Connected: ', adbConnectionInformation);
 
-    disconnectButton.removeAttribute('disabled');
-    startButton.removeAttribute('disabled');
-    connectButton.setAttribute('disabled', '');
-
-    console.log(adbClient);
+    connectButton.classList.toggle('hidden');
+    disconnectButton.classList.toggle('hidden');
   } catch(e) {
     console.error('Connection Failed: ', e);
+    status.textContent = 'Failed to connect to a device';
   }
 });
 
@@ -84,10 +86,9 @@ disconnectButton.addEventListener('click', async (_) => {
       await transport.close();
       transport = null;
     }
-    disconnectButton.setAttribute('disabled', '');
-    startButton.setAttribute('disabled', '');
-    connectButton.removeAttribute('disabled');
-
+    connectButton.classList.toggle('hidden');
+    disconnectButton.classList.toggle('hidden');
+    status.textContent = 'Connect to a device to start';
   } catch(e) {
     console.error('Disconnecting Failed: ', e);
   }
@@ -98,18 +99,19 @@ const RECORD_FILE_NAME = '/sdcard/webadb-record-2.mp4';
 let shell: Stream | null = null;
 startButton.addEventListener('click', async() => {
   shell = await Stream.open(adbClient!, `shell:screenrecord ${RECORD_FILE_NAME}`, options);
-  startButton.setAttribute('disabled', '');
-  stopButton.removeAttribute('disabled');
+  status.textContent = 'Recording...';
+  stopButton.classList.toggle('hidden');
+  startButton.classList.toggle('hidden');
 });
 
 stopButton.addEventListener('click', async() => {
   // await shell!.write(String.fromCharCode(3) + '\n'); // CTRL+C
+  status.textContent = 'Finishing Recording...';
   await shell!.close();
   const message = await shell!.read();
-  // expect CLSE?
-  console.log(message);
+  console.log(message); // expect CLSE
   await shell!.write('OKAY');
-
+  status.textContent = 'Pulling video...';
   // Trying to load the file straight away results in a broken file.
   // Waiting for a couple of seconds fixes it. Maybe send STAT before
   // attempting download.
@@ -121,16 +123,30 @@ stopButton.addEventListener('click', async() => {
     console.log('video: ', videoSrc);
     video!.src = videoSrc;
     download!.href = videoSrc;
-    stopButton.setAttribute('disabled', '');
-    startButton.removeAttribute('disabled');
+    download.download = 'recording.mp4';
+    stopButton.classList.toggle('hidden');
+    startButton.classList.toggle('hidden');
+    screenshot.classList.add('hidden');
+    video.classList.remove('hidden');
+    download.classList.remove('hidden');
+    status.textContent = 'Done! Connected and ready';
   }, 2000);
 });
 
-pullButton?.addEventListener('click', async() => {
-  const result = await adbClient!.pull(RECORD_FILE_NAME);
-  const videoSrc = window.URL.createObjectURL(result);
-  console.log(result);
-  console.log('video: ', videoSrc);
-  video!.src = videoSrc;
-  download!.href = videoSrc;
+screenshotButton.addEventListener('click', async() => {
+  status.textContent = 'Generating Screenshot...';
+  await adbClient!.shell('screencap -p /sdcard/screenshot.png');
+  status.textContent = 'Pulling image...';
+  setTimeout(async () => {
+    console.log('Starting ADB Pull');
+    const result = await adbClient!.pull('/sdcard/screenshot.png');
+    const imageSrc = window.URL.createObjectURL(result);
+    screenshot.src = imageSrc;
+    download.href = imageSrc;
+    download.download = 'screenshot.png';
+    download.classList.remove('hidden');
+    screenshot.classList.remove('hidden');
+    video.classList.add('hidden');
+    status.textContent = 'Done! Connected and ready';
+  }, 2000);
 });

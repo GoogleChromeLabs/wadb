@@ -61,21 +61,21 @@ function sendCommand(cmd: string) {
   shell!.write(input.value + '\n');
 }
 
-connectButton.addEventListener('click', async () => {
+connectButton.addEventListener('click', async (e) => {
   try {
     transport = await Transport.open(options);
     adbClient = new AdbClient(transport, options, keyStore);
     await adbClient.connect();
     shell = await adbClient.interactiveShell(appendToCode);
 
-    disconnectButton.removeAttribute('disabled');
-    connectButton.setAttribute('disabled', '');
+    disconnectButton.classList.toggle('hidden');
+    connectButton.classList.toggle('hidden');
   } catch(e) {
     console.error('Connection Failed: ', e);
   }
 });
 
-disconnectButton.addEventListener('click', async () => {
+disconnectButton.addEventListener('click', async (e) => {
   try {
     await transport?.close();
     transport = null;
@@ -84,18 +84,14 @@ disconnectButton.addEventListener('click', async () => {
   } catch (e) {
     console.error('Error closing the connection', e);
   }
-  disconnectButton.setAttribute('disabled', '');
-  connectButton.removeAttribute('disabled');
+  disconnectButton.classList.toggle('hidden');
+  connectButton.classList.toggle('hidden');
 });
 
 input.addEventListener('keyup', (e) => {
-  if (!shell) {
-    return;
-  }
-
   if (e.keyCode === 13) {
     e.preventDefault();
-    sendCommand(input.value + '\n');
+    sendCommand(input.value);
     input.value = '';
     return false;
   }
