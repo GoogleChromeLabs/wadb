@@ -1,15 +1,25 @@
+import {terser} from 'rollup-plugin-terser';
+
 export default [{
   input: 'dist/main.js',
-  output: {
+  output: [{
     file: 'dist/bundle.js',
     format: 'umd'
-  }
+  }, {
+    file: 'dist/bundle.min.js',
+    format: 'iife',
+    name: 'version',
+    plugins: [terser()]    
+  }]
 }, {
   input: 'dist/interactiveshell.js',
-  output: {
-      file: 'dist/interactiveshell-bundle.js',
-      format: 'umd'
-    }
+  output: [{
+    file: 'dist/interactiveshell-bundle.js',
+    format: 'umd'
+  }, {
+    file: 'dist/interactiveshell-bundle.min.js',
+    format: 'iife',
+    name: 'version',
+    plugins: [terser()]   
+  }]
 }];
-
-//    "package": "rollup dist/main.js --file dist/bundle.js --format umd --name \"main\" -m"
