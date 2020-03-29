@@ -108,9 +108,6 @@ stopButton.addEventListener('click', async() => {
   // await shell!.write(String.fromCharCode(3) + '\n'); // CTRL+C
   status.textContent = 'Finishing Recording...';
   await shell!.close();
-  const message = await shell!.read();
-  console.log(message); // expect CLSE
-  await shell!.write('OKAY');
   status.textContent = 'Pulling video...';
   // Trying to load the file straight away results in a broken file.
   // Waiting for a couple of seconds fixes it. Maybe send STAT before
@@ -119,8 +116,6 @@ stopButton.addEventListener('click', async() => {
     console.log('Starting ADB Pull');
     const result = await adbClient!.pull(RECORD_FILE_NAME);
     const videoSrc = window.URL.createObjectURL(result);
-    console.log(result);
-    console.log('video: ', videoSrc);
     video!.src = videoSrc;
     download!.href = videoSrc;
     download.download = 'recording.mp4';

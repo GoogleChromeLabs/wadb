@@ -15,7 +15,7 @@
  */
 
 import Stream from './Stream';
-import Message from './Message';
+import Message from './message/Message';
 
 type callbackFunction = (text: string) => void;
 
@@ -23,6 +23,7 @@ export default class Shell {
   private textDecoder = new TextDecoder();
   private textEncoder = new TextEncoder();
   private messageListener: ((message: Message) => void)[] = [];
+  private closed = false;
 
   constructor(readonly stream: Stream, readonly callbackFunction?: callbackFunction) {
     this.loopRead();
@@ -47,10 +48,11 @@ export default class Shell {
           listener(message);
         }
 
-      } while (message.header.cmd !== 'CLSE')
+      } while (!this.closed)
     } catch(e) {
       console.error('loopRead crashed', e);
     }
+    this.stream.client.unregisterStream(this.stream);
   }
 
   private waitForMessage(cmd: string): Promise<Message> {
@@ -73,7 +75,7 @@ export default class Shell {
   }
 
   async close() {
-    await this.stream.close();
-    await this.waitForMessage('CLSE');
+    this.closed = true;
+    await this.write('CLSE');
   }
 }

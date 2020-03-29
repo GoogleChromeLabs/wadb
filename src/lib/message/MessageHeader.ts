@@ -14,7 +14,7 @@
  *  limitations under the License.
  */
 
-import {encodeCmd, decodeCmd} from './Helpers';
+import {encodeCmd, decodeCmd} from '../Helpers';
 
 export default class MessageHeader {
   constructor(

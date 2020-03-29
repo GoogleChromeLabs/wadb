@@ -15,34 +15,40 @@
  */
 
 import AdbClient from './AdbClient';
-import Message from './Message';
-import MessageHeader from './MessageHeader';
+import Message from './message/Message';
 import {Options} from './Options';
 import {toHex32} from './Helpers';
 import SyncFrame from './SyncFrame';
 
 export default class Stream {
   private static nextId: number = 1;
-  private isOpen: boolean;
+  private awaitMessage: ((msg: Message) => void) | null = null;
 
-  constructor(private client: AdbClient, private service: string, private localId: number,
+  constructor(readonly client: AdbClient, private service: string, private localId: number,
      private remoteId: number, private options: Options) {
-    this.isOpen = true;
   }
 
   async close(): Promise<void> {
-    if (!this.isOpen) {
-      return;
-    }
-
-    const closeMessage = this.newMessage('CLSE');
-    await this.client.sendMessage(closeMessage);
+    await this.write('CLSE');
 
 		if (this.options.debug) {
 			console.log(`Closed stream ${this.service}`);
 			console.log(` local_id: 0x${toHex32(this.localId)}`);
 			console.log(` remote_id: 0x${toHex32(this.remoteId)}`);
-		}
+    }
+    this.client.unregisterStream(this);
+  }
+
+  consumeMessage(msg: Message): boolean {
+    if (msg.header.arg0 === 0 || msg.header.arg0 !== this.remoteId ||
+        msg.header.arg1 === 0 || msg.header.arg1 !== this.localId) {
+      return false;
+    }
+    if (this.awaitMessage) {
+      this.awaitMessage(msg);
+      this.awaitMessage = null;
+    }
+    return true;
   }
 
   async write(cmd: string, data?: DataView) {
@@ -51,20 +57,9 @@ export default class Stream {
   }
 
   async read(): Promise<Message> {
-    const response = await this.client.receiveMessage();
-
-    // remote's prospective of local_id/remote_id is reversed
-    if (response.header.arg0 !== 0 && response.header.arg0 !== this.remoteId) {
-      throw new Error(
-        `Incorrect arg0: 0x${toHex32(response.header.arg0)} (expected 0x${toHex32(this.remoteId)})`
-      );
-    }
-    if (this.localId !== 0 && response.header.arg1 !== this.localId) {
-      throw new Error(
-        `Incorrect arg1: 0x${toHex32(response.header.arg1)} (expected 0x${toHex32(this.localId)})`
-      );
-    }
-    return response;
+    return new Promise<Message>(resolve => {
+      this.awaitMessage = resolve;
+    });
   }
 
   /**
@@ -111,7 +106,6 @@ export default class Stream {
     let buffer = new Uint8Array(fileDataMessage.data!.buffer.slice(8));
     const chunks: ArrayBuffer[] = [];
     while (syncFrame.cmd !== 'DONE') {
-      console.log(syncFrame);
       while (syncFrame.byteLength >= buffer.byteLength) {
         fileDataMessage = await this.read();
         await this.client.sendMessage(okayMessage);
@@ -144,7 +138,7 @@ export default class Stream {
 
     let response;
     do {
-      response = await device.receiveMessage();
+      response = await device.awaitMessage();
     } while (response.header.arg1 !== localId);
 
     if (response.header.cmd !== 'OKAY') {
@@ -158,6 +152,8 @@ export default class Stream {
       console.log(` remote_id: 0x${toHex32(remoteId)}`);
     }
 
-    return new Stream(device, service, localId, remoteId, options);
+    const stream = new Stream(device, service, localId, remoteId, options);
+    device.registerStream(stream);
+    return stream;
   }
 }

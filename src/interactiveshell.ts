@@ -77,6 +77,7 @@ connectButton.addEventListener('click', async (e) => {
 
 disconnectButton.addEventListener('click', async (e) => {
   try {
+    await shell?.close();
     await transport?.close();
     transport = null;
     adbClient = null;

@@ -16,21 +16,27 @@
 
 import Transport from './transport/Transport';
 import {Options} from './Options';
-import Message from './Message';
-import MessageHeader from './MessageHeader';
+import Message from './message/Message';
+import MessageChannel from './message/MessageChannel'
 import {KeyStore} from './KeyStore';
 import {privateKeyDump} from './Helpers';
 import AdbConnectionInformation from './AdbConnectionInformation';
 import Stream from './Stream';
 import Shell from './Shell';
+import MessageListener from './message/MessageListener';
 
 const VERSION = 0x01000000;
 const VERSION_NO_CHECKSUM = 0x01000001;
 const MAX_PAYLOAD = 256 * 1024;
 
 const MACHINE_BANNER: string = 'host::\0';
+type MessageCallback = (msg: Message) => void;
 
-export default class AdbClient {
+export default class AdbClient implements MessageListener {
+  private messageChannel: MessageChannel;
+  private messageCallback: MessageCallback | null = null;
+  private openStreams: Set<Stream> = new Set();
+
   /**
    * Creates a new AdbClient
    *
@@ -40,7 +46,36 @@ export default class AdbClient {
     readonly transport: Transport,
     readonly options: Options,
     readonly keyStore: KeyStore,) {
+      this.messageChannel = new MessageChannel(transport, options, this);
+  }
 
+  registerStream(stream: Stream) {
+    this.openStreams.add(stream);
+    console.log(this.openStreams);
+  }
+
+  unregisterStream(stream: Stream) {
+    this.openStreams.delete(stream);
+    console.log(this.openStreams);
+  }
+
+  newMessage(msg: Message) {
+    // Check if this message matches one of the open streams.
+    for (const stream of this.openStreams) {
+      if (stream.consumeMessage(msg)) {
+        return;
+      }
+    }
+
+    if (this.messageCallback) {
+      this.messageCallback(msg);
+    }
+  }
+
+  public async awaitMessage(): Promise<Message> {
+    return new Promise((resolve) => {
+      this.messageCallback = resolve;
+    });
   }
 
   async connect(): Promise<AdbConnectionInformation> {
@@ -52,7 +87,7 @@ export default class AdbClient {
     // arrives.
     let response;
     do {
-      response = await this.receiveMessage();
+      response = await this.awaitMessage();
     } while (response.header.cmd !== 'CNXN' && response.header.cmd !== 'AUTH');
 
     // Server connected
@@ -72,7 +107,7 @@ export default class AdbClient {
   }
 
   async disconnect() {
-    throw new Error('Not Implemented Yet');
+    this.messageChannel.close();
   }
 
   async shell(command: string): Promise<string> {
@@ -121,7 +156,7 @@ export default class AdbClient {
       const signatureMessage =
           Message.authSignature(new DataView(signed), this.options.useChecksum);
       await this.sendMessage(signatureMessage);
-      const signatureResponse = await this.receiveMessage();
+      const signatureResponse = await this.awaitMessage();
       if (signatureResponse.header.cmd === 'CNXN') {
         return signatureResponse;
       }
@@ -136,7 +171,7 @@ export default class AdbClient {
     await this.sendMessage(keyMessage);
 
     console.log('Accept Key on Device');
-    const keyResponse = await this.receiveMessage()
+    const keyResponse = await this.awaitMessage()
     if (keyResponse.header.cmd !== 'CNXN') {
       console.error('AUTH failed. Phone didn\'t accept key', keyResponse);
       throw new Error('AUTH failed. Phone didn\'t accept key');
@@ -144,31 +179,8 @@ export default class AdbClient {
     return keyResponse;
   }
 
-  private async receiveMessageHeader(): Promise<MessageHeader> {
-    const response = await this.transport.read(24);
-    return MessageHeader.parse(response, this.options.useChecksum);
-  }
-
-  public async receiveMessage(): Promise<Message> {
-    const header = await this.receiveMessageHeader();
-    let receivedData;
-    switch (header.cmd) {
-      default: {
-        if (header.length > 0) {
-          receivedData = await this.transport.read(header.length);
-        }
-      }
-    }
-    const message = new Message(header, receivedData);
-    return message;
-  }
-
   public async sendMessage(m: Message) {
-    const data = m.header.toDataView();
-    await this.transport.write(data.buffer);
-    if (m.data) {
-      await this.transport.write(m.data.buffer);
-    }
+    await this.messageChannel.write(m);
   }
 
   static async generateKey(dump: boolean, keySize: number): Promise<CryptoKeyPair> {
