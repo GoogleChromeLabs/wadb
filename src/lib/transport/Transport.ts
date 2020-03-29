@@ -20,7 +20,7 @@
 export default interface Transport {
   /**
    * Writes data to the transport layer.
-   * @param {DataView} data the data to be written to the layer. 
+   * @param {DataView} data the data to be written to the layer.
    */
   write(data: ArrayBuffer): Promise<void>;
 

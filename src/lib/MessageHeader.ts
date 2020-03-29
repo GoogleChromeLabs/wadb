@@ -56,4 +56,4 @@ export default class MessageHeader {
 
     return new MessageHeader(decodeCmd(cmd), arg0, arg1, len, checksum);
   }
-} 
+}
