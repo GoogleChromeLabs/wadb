@@ -70,6 +70,21 @@ export function toB64(buffer: ArrayBuffer) {
   return btoa(new Uint8Array(buffer).reduce((s, b) => s + String.fromCharCode(b), ''));
 }
 
+export function encodeCmd(cmd: string): number {
+  const encoder = new TextEncoder();
+  const buffer = encoder.encode(cmd).buffer;
+  const view = new DataView(buffer);
+  return view.getUint32(0, true);
+}
+
+export function decodeCmd(cmd: number): string {
+  const decoder = new TextDecoder();
+  const buffer = new ArrayBuffer(4);
+  const view = new DataView(buffer);
+  view.setUint32(0, cmd, true);
+  return decoder.decode(buffer);
+}
+
 function paddit(text: string, width: number, padding: string) {
   const padlen = width - text.length;
   let padded = '';

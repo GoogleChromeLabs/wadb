@@ -14,8 +14,9 @@
  *  limitations under the License.
  */
 
-import {hexdump} from './Helpers';
-import { Options } from './Options';
+import Transport from './Transport';
+import {hexdump} from '../Helpers';
+import {Options} from '../Options';
 
 const ADB_DEVICE = {classCode: 255, subclassCode: 66, protocolCode: 1} as USBDeviceFilter;
 const FASTBOOT_DEVICE = {classCode: 255, subclassCode: 66, protocolCode: 3} as USBDeviceFilter;
@@ -28,9 +29,9 @@ interface DeviceMatch {
 }
 
 /**
- * A WebUSB transport layer
+ * An implementation of {@link Transport} using WebUSB as the tranport layer.
  */
-export default class Transport {
+export default class WebUsbTransport implements Transport {
   private constructor(
     readonly device: USBDevice,
     readonly match: DeviceMatch,
@@ -53,7 +54,7 @@ export default class Transport {
    *
    * @param {ArrayBuffer} data the data to be sent to the interface
    */
-  async send(data: ArrayBuffer) {
+  async write(data: ArrayBuffer) {
     if (this.options.dump) {
       hexdump(new DataView(data), '' + this.endpointOut + '==> ');
     }
@@ -67,7 +68,7 @@ export default class Transport {
    * @param {number} len the length of date to be read
    * @returns {Promise<DataView} data read from the device
    */
-  async receive(len: number): Promise<DataView> {
+  async read(len: number): Promise<DataView> {
     const response = await this.device.transferIn(this.endpointIn, len);
     if (!response.data) {
       throw new Error('Response didn\'t contain any data');
@@ -79,7 +80,7 @@ export default class Transport {
    * @returns {boolean} true if the connected device is an ADB device.
    */
 	isAdb() {
-		const match = Transport.findMatch(this.device, ADB_DEVICE);
+		const match = WebUsbTransport.findMatch(this.device, ADB_DEVICE);
 		return match != null;
 	};
 
@@ -87,7 +88,7 @@ export default class Transport {
    * @returns {boolean} true if the connected device is a Fastboot device.
    */
 	isFastboot(){
-		const match = Transport.findMatch(this.device, FASTBOOT_DEVICE);
+		const match = WebUsbTransport.findMatch(this.device, FASTBOOT_DEVICE);
 		return match != null;
   };
 
@@ -96,7 +97,7 @@ export default class Transport {
    *
    * @param options
    */
-  static async open(options: any): Promise<Transport> {
+  static async open(options: any): Promise<WebUsbTransport> {
     const device = await navigator.usb.requestDevice({filters: DEVICE_FILTERS});
     await device.open();
 
@@ -113,10 +114,10 @@ export default class Transport {
     //     match.intf.interfaceNumber, match.alternate.alternateSetting);
 
     // Store the correct endpoints
-    const endpointIn = Transport.getEndpointNum(match.alternate.endpoints, 'in');
-    const endpointOut = Transport.getEndpointNum(match.alternate.endpoints, 'out');
+    const endpointIn = WebUsbTransport.getEndpointNum(match.alternate.endpoints, 'in');
+    const endpointOut = WebUsbTransport.getEndpointNum(match.alternate.endpoints, 'out');
 
-    const transport = new Transport(device, match, endpointIn, endpointOut, options);
+    const transport = new WebUsbTransport(device, match, endpointIn, endpointOut, options);
     if (options.debug) {
       console.log('Created new Transport: ', transport);
     }

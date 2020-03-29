@@ -15,7 +15,8 @@
  */
 
 import AdbClient from './AdbClient';
-import {Message, MessageHeader} from './Message';
+import Message from './Message';
+import MessageHeader from './MessageHeader';
 import {Options} from './Options';
 import {toHex32} from './Helpers';
 import SyncFrame from './SyncFrame';
@@ -42,22 +43,6 @@ export default class Stream {
 			console.log(` local_id: 0x${toHex32(this.localId)}`);
 			console.log(` remote_id: 0x${toHex32(this.remoteId)}`);
 		}
-  }
-
-  async readHeader(): Promise<MessageHeader> {
-    const header = await this.client.receiveMessageHeader();
-    // remote's prospective of local_id/remote_id is reversed
-    if (header.arg0 !== 0 && header.arg0 !== this.remoteId) {
-      throw new Error(
-        `Incorrect arg0: 0x${toHex32(header.arg0)} (expected 0x${toHex32(this.remoteId)})`
-      );
-    }
-    if (this.localId !== 0 && header.arg1 !== this.localId) {
-      throw new Error(
-        `Incorrect arg1: 0x${toHex32(header.arg1)} (expected 0x${toHex32(this.localId)})`
-      );
-    }
-    return header;
   }
 
   async write(cmd: string, data?: DataView) {
@@ -91,41 +76,35 @@ export default class Stream {
    * until the file is transferred. Each chunk will not be larger than 64k.
    * When the file is transferred a sync response "DONE" is retrieved where the
    * length can be ignored.
+   *
+   * @param {string} remotePath path to the file to be pulled from the device
+   * @returns {Promise<Blob>} a Blog with the file contents.
    */
-  async pull(filename: string): Promise<Blob> {
+  async pull(remotePath: string): Promise<Blob> {
     const encoder = new TextEncoder();
-    const encodedFilename = encoder.encode(filename);
+    const encodedFilename = encoder.encode(remotePath);
 
     // Sends RECV with filename length.
     const recvFrame = new SyncFrame('RECV', encodedFilename.byteLength);
     const wrteRecvMessage = this.newMessage('WRTE', recvFrame.toDataView());
-    console.log('>>>', wrteRecvMessage);
     await this.client.sendMessage(wrteRecvMessage);
     const wrteRecvResponse = await this.read();
-    console.log('<<<', wrteRecvResponse);
     if (wrteRecvResponse.header.cmd !== 'OKAY') {
       throw new Error('WRTE/RECV failed: ' + wrteRecvResponse);
     }
 
     // 17. We send the path of the file we want again sdcard/someFile.txt
     const wrteFilenameMessage = this.newMessage('WRTE', new DataView(encodedFilename.buffer));
-    console.log('>>>', wrteFilenameMessage);
     await this.client.sendMessage(wrteFilenameMessage);
 
     // 18. Device sends us OKAY
     const wrteFilenameResponse = await this.read();
-    console.log('<<<', wrteFilenameResponse);
     if (wrteFilenameResponse.header.cmd !== 'OKAY') {
       throw new Error('WRTE/filename failed: ' + wrteFilenameResponse);
     }
 
     const okayMessage = this.newMessage('OKAY');
-
-    console.log('expect WRTE');
     let fileDataMessage = await this.read();
-    console.log('<<<', fileDataMessage);
-
-    console.log('>>>', okayMessage);
     await this.client.sendMessage(okayMessage);
 
     let syncFrame = SyncFrame.fromDataView(new DataView(fileDataMessage.data!.buffer.slice(0, 8)));
@@ -135,8 +114,6 @@ export default class Stream {
       console.log(syncFrame);
       while (syncFrame.byteLength >= buffer.byteLength) {
         fileDataMessage = await this.read();
-        console.log('<<<', fileDataMessage);
-        console.log('>>>', okayMessage);
         await this.client.sendMessage(okayMessage);
 
         // Join both arrays
@@ -163,15 +140,11 @@ export default class Stream {
     const localId = Stream.nextId++;
     let remoteId = 0;
     const m = Message.open(localId, remoteId, service, options.useChecksum);
-    console.log('open message:', m);
-
     await device.sendMessage(m);
 
     let response;
     do {
-      console.log('awaiting for response');
       response = await device.receiveMessage();
-      console.log('Reeived response: ', response);
     } while (response.header.arg1 !== localId);
 
     if (response.header.cmd !== 'OKAY') {

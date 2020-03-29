@@ -14,9 +14,10 @@
  *  limitations under the License.
  */
 
-import Transport from './Transport';
+import Transport from './transport/Transport';
 import {Options} from './Options';
-import {Message, MessageHeader} from './Message';
+import Message from './Message';
+import MessageHeader from './MessageHeader';
 import {KeyStore} from './KeyStore';
 import {privateKeyDump} from './Helpers';
 import AdbConnectionInformation from './AdbConnectionInformation';
@@ -51,9 +52,7 @@ export default class AdbClient {
     // arrives.
     let response;
     do {
-      console.log('reading response');
       response = await this.receiveMessage();
-      console.log(response);
     } while (response.header.cmd !== 'CNXN' && response.header.cmd !== 'AUTH');
 
     // Server connected
@@ -135,56 +134,41 @@ export default class AdbClient {
     const exportedKey = new DataView(await crypto.subtle.exportKey('spki', key.publicKey));
     const keyMessage = Message.authPublicKey(exportedKey, this.options.useChecksum);
     await this.sendMessage(keyMessage);
+
     console.log('Accept Key on Device');
     const keyResponse = await this.receiveMessage()
     if (keyResponse.header.cmd !== 'CNXN') {
       console.error('AUTH failed. Phone didn\'t accept key', keyResponse);
       throw new Error('AUTH failed. Phone didn\'t accept key');
     }
-
     return keyResponse;
   }
 
-  public async receiveMessageHeader(): Promise<MessageHeader> {
-    const response = await this.transport.receive(24);
+  private async receiveMessageHeader(): Promise<MessageHeader> {
+    const response = await this.transport.read(24);
     return MessageHeader.parse(response, this.options.useChecksum);
-  }
-
-  public async receiveRaw(byteLength: number): Promise<DataView> {
-    return await this.transport.receive(byteLength);
-  }
-
-  public async sendRaw(dataView: DataView) {
-    await this.transport.send(dataView.buffer);
   }
 
   public async receiveMessage(): Promise<Message> {
     const header = await this.receiveMessageHeader();
-    // console.log('Received header:', header);
     let receivedData;
     switch (header.cmd) {
       default: {
         if (header.length > 0) {
-          receivedData = await this.transport.receive(header.length);
+          receivedData = await this.transport.read(header.length);
         }
       }
     }
     const message = new Message(header, receivedData);
-    // console.log('Received Message: ', message);
     return message;
   }
 
   public async sendMessage(m: Message) {
-    // console.log('Sending Message', m);
     const data = m.header.toDataView();
-    await this.transport.send(data.buffer);
+    await this.transport.write(data.buffer);
     if (m.data) {
-      await this.transport.send(m.data.buffer);
+      await this.transport.write(m.data.buffer);
     }
-  }
-
-  private async sendData(data: DataView) {
-    await this.transport.send(data.buffer);
   }
 
   static async generateKey(dump: boolean, keySize: number): Promise<CryptoKeyPair> {

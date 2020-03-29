@@ -14,7 +14,7 @@
  *  limitations under the License.
  */
 
-import Transport from './lib/Transport';
+import WebUsbTransport from './lib/transport/WebUsbTransport';
 import AdbClient from './lib/AdbClient';
 import {Options} from './lib/Options';
 import {KeyStore} from './lib/KeyStore';
@@ -46,7 +46,7 @@ const options: Options = {
 
 const keyStore = new MyKeyStore();
 
-let transport: Transport | null = null;
+let transport: WebUsbTransport | null = null;
 let adbClient: AdbClient | null = null;
 let shell: Shell | null = null;
 
@@ -58,12 +58,12 @@ function appendToCode(text: string) {
 }
 
 function sendCommand(cmd: string) {
-  shell!.write(input.value + '\n');
+  shell!.write(cmd + '\n');
 }
 
 connectButton.addEventListener('click', async (e) => {
   try {
-    transport = await Transport.open(options);
+    transport = await WebUsbTransport.open(options);
     adbClient = new AdbClient(transport, options, keyStore);
     await adbClient.connect();
     shell = await adbClient.interactiveShell(appendToCode);

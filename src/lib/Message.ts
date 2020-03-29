@@ -14,64 +14,9 @@
  *  limitations under the License.
  */
 
-export class MessageHeader {
-  constructor(
-    readonly cmd: string,
-    readonly arg0: number,
-    readonly arg1: number,
-    readonly length: number,
-    readonly checksum: number) {
-  }
+import MessageHeader from './MessageHeader';
 
-  toDataView(): DataView {
-    const view = new DataView(new ArrayBuffer(24));
-    const rawCmd = MessageHeader.encodeCmd(this.cmd);
-    const magic = rawCmd ^ 0xffffffff;
-		view.setUint32(0, rawCmd, true);
-		view.setUint32(4, this.arg0, true);
-		view.setUint32(8, this.arg1, true);
-		view.setUint32(12, this.length, true);
-		view.setUint32(16, this.checksum, true);
-    view.setUint32(20, magic, true);
-    return view;
-  }
-
-  static parse(data: DataView, useChecksum = false): MessageHeader {
-    const cmd = data.getUint32(0, true);
-    const arg0 = data.getUint32(4, true);
-    const arg1 = data.getUint32(8, true);
-    const len = data.getUint32(12, true);
-    const checksum = data.getUint32(16, true);
-
-     // Android seems to have stopped providing checksums
-     if (useChecksum && data.byteLength > 20) {
-      const magic = data.getUint32(20, true);
-
-      if ((cmd ^ magic) !== -1) {
-        throw new Error('magic mismatch');
-      }
-    }
-
-    return new MessageHeader(MessageHeader.decodeCmd(cmd), arg0, arg1, len, checksum);
-  }
-
-  private static encodeCmd(cmd: string): number {
-    const encoder = new TextEncoder();
-    const buffer = encoder.encode(cmd).buffer;
-    const view = new DataView(buffer);
-    return view.getUint32(0, true);
-  }
-
-  private static decodeCmd(cmd: number): string {
-    const decoder = new TextDecoder();
-    const buffer = new ArrayBuffer(4);
-    const view = new DataView(buffer);
-    view.setUint32(0, cmd, true);
-    return decoder.decode(buffer);
-  }
-}
-
-export class Message {
+export default class Message {
   constructor(
     readonly header: MessageHeader,
     readonly data?: DataView,

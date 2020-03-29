@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2020 Google Inc. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,26 +14,19 @@
  *  limitations under the License.
  */
 
-import {encodeCmd, decodeCmd} from './Helpers';
+/**
+ * A transport layer for data. Implementations must provide a read and write method.
+ */
+export default interface Transport {
+  /**
+   * Writes data to the transport layer.
+   * @param {DataView} data the data to be written to the layer. 
+   */
+  write(data: ArrayBuffer): Promise<void>;
 
-export default class SyncFrame {
-  constructor(readonly cmd: string, readonly byteLength: number) {
-
-  }
-
-  toDataView(): DataView {
-    const data = new ArrayBuffer(8);
-    const cmd = encodeCmd(this.cmd);
-
-    const view = new DataView(data);
-    view.setUint32(0, cmd, true);
-    view.setUint32(4, this.byteLength, true);
-    return view;
-  }
-
-  static fromDataView(dataView: DataView): SyncFrame {
-    const cmd = decodeCmd(dataView.getUint32(0, true));
-    const byteLength = dataView.getUint32(4, true);
-    return new SyncFrame(cmd, byteLength);
-  }
+  /**
+   * Reands `len` bytes from the transport layer.
+   * @param {number} len the number of bytes to read.
+   */
+  read(len: number): Promise<DataView>;
 }

@@ -14,13 +14,13 @@
  *  limitations under the License.
  */
 
-import Transport from './lib/Transport';
+import WebUsbTransport from './lib/transport/WebUsbTransport';
 import AdbClient from './lib/AdbClient';
 import {Options} from './lib/Options';
 import {KeyStore} from './lib/KeyStore';
 import Stream from './lib/Stream';
 
-let transport: Transport | null;
+let transport: WebUsbTransport | null;
 let adbClient: AdbClient | null;
 
 const connectButton = document.querySelector('#connect')!;
@@ -56,7 +56,7 @@ const keyStore = new MyKeyStore();
 
 connectButton.addEventListener('click', async (_) => {
   try {
-    transport = await Transport.open(options);
+    transport = await WebUsbTransport.open(options);
     adbClient = new AdbClient(transport, options, keyStore);
 
     status.textContent = 'Accept prompt on device';

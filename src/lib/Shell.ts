@@ -15,7 +15,7 @@
  */
 
 import Stream from './Stream';
-import {Message} from './Message';
+import Message from './Message';
 
 type callbackFunction = (text: string) => void;
 
