@@ -34,6 +34,9 @@ export default class MessageChannel {
     let message: Message;
     do {
       message = await this.read();
+      if (this.options.debug) {
+        console.log('<<<', message);
+      }
       this.listener.newMessage(message);
     } while(this.active);
   }
@@ -62,6 +65,9 @@ export default class MessageChannel {
   }
 
   async write(m: Message) {
+    if (this.options.debug) {
+      console.log('>>>', m);
+    }
     const data = m.header.toDataView();
     await this.transport.write(data.buffer);
     if (m.data) {

@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "lint": "tslint \"src/**/*.ts\"",
+    "lint-fix": "tslint \"src/**/*.ts\" --fix",
     "build": "tsc",
     "package": "rollup --config \"./rollup.config.js\" -m",
     "serve": "serve"

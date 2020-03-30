@@ -15,6 +15,7 @@
  */
 
 import MessageHeader from './MessageHeader';
+import { toB64 } from '../Helpers';
 
 export default class Message {
   constructor(
@@ -62,7 +63,9 @@ export default class Message {
   }
 
   static authPublicKey(publicKey: DataView, useChecksum: boolean): Message {
-    return Message.newMessage('AUTH', 3, 0, useChecksum, publicKey);
+    const textEncoder = new TextEncoder();
+    const data = textEncoder.encode(toB64(publicKey.buffer) + '\0');
+    return Message.newMessage('AUTH', 3, 0, useChecksum, new DataView(data.buffer));
   }
 
   static checksum(dataView: DataView): number {

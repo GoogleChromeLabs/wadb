@@ -66,7 +66,7 @@ export async function publicKeyDump(key: CryptoKeyPair): Promise<void> {
   console.log(`-----BEGIN PUBLIC KEY-----\n${toB64(pubKey)}'\n-----END PUBLIC KEY-----`);
 }
 
-export function toB64(buffer: ArrayBuffer) {
+export function toB64(buffer: ArrayBuffer): string {
   return btoa(new Uint8Array(buffer).reduce((s, b) => s + String.fromCharCode(b), ''));
 }
 
