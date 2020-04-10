@@ -14,7 +14,7 @@ A non-exhaustive list of things that not implemented:
 
 ## Usage
 
-# Connecting to a device
+### Connecting to a device
 ```typescript
   const options: Options = {
     debug: true,
@@ -28,17 +28,17 @@ A non-exhaustive list of things that not implemented:
   await adbClient.connect();
 ```
 
-# Downloading a file from the device (adb pull)
+### Downloading a file from the device (adb pull)
 ```typescript
   const result: Blob = await adbClient.pull('/sdcard/my-video.mp4');
 ```
 
-# Sending shell commands
+### Sending shell commands
 ```typescript
   const result: string = await adbClient.shell('uname -a');
 ```
 
-# Interactive shell
+### Interactive shell
 ```typescript
   const callback = (output: string) => {
     console.log('server: ' + output);
