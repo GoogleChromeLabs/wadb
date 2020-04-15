@@ -14,11 +14,11 @@
  *  limitations under the License.
  */
 
-import WebUsbTransport from './lib/transport/WebUsbTransport';
-import AdbClient from './lib/AdbClient';
-import {Options} from './lib/Options';
-import {KeyStore} from './lib/KeyStore';
-import Stream from './lib/Stream';
+import WebUsbTransport from '../src/lib/transport/WebUsbTransport';
+import AdbClient from '../src/lib/AdbClient';
+import {Options} from '../src/lib/Options';
+import {KeyStore} from '../src/lib/KeyStore';
+import Stream from '../src/lib/Stream';
 
 let transport: WebUsbTransport | null;
 let adbClient: AdbClient | null;

@@ -1,7 +1,7 @@
 import {terser} from 'rollup-plugin-terser';
 
 export default [{
-  input: 'dist/main.js',
+  input: 'dist/demos/main.js',
   output: [{
     file: 'dist/bundle.js',
     format: 'umd'
@@ -12,7 +12,7 @@ export default [{
     plugins: [terser()]    
   }]
 }, {
-  input: 'dist/interactiveshell.js',
+  input: 'dist/demos/interactiveshell.js',
   output: [{
     file: 'dist/interactiveshell-bundle.js',
     format: 'umd'

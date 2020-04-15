@@ -1,18 +1,23 @@
 {
-  "name": "adboverwebusb",
+  "name": "demo",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
   "scripts": {
     "lint": "tslint \"src/**/*.ts\"",
     "lint-fix": "tslint \"src/**/*.ts\" --fix",
-    "build": "tsc"
+    "build": "tsc",
+    "package": "rollup --config \"./rollup.config.js\" -m",
+    "serve": "serve"
   },
   "author": "André Cipriani Bandarra",
   "license": "Apache-2.0",
   "devDependencies": {
-    "@types/w3c-web-usb": "^1.0.4",
+    "rollup": "^2.0.3",
+    "rollup-plugin-terser": "^5.3.0",
+    "serve": "^11.3.0",
     "tslint": "^6.0.0",
-    "typescript": "^3.8.3"
+    "typescript": "^3.8.3",
+    "adboverwebusb": "../"
   }
 }
