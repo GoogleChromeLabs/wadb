@@ -16,7 +16,7 @@
 
 import {encodeCmd, decodeCmd} from '../Helpers';
 
-export default class MessageHeader {
+export class MessageHeader {
   constructor(
     readonly cmd: string,
     readonly arg0: number,

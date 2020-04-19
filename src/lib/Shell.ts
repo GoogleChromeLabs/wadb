@@ -14,12 +14,12 @@
  *  limitations under the License.
  */
 
-import Stream from './Stream';
-import Message from './message/Message';
+import {Stream} from './Stream';
+import {Message} from './message';
 
 type callbackFunction = (text: string) => void;
 
-export default class Shell {
+export class Shell {
   private textDecoder = new TextDecoder();
   private textEncoder = new TextEncoder();
   private messageListener: ((message: Message) => void)[] = [];

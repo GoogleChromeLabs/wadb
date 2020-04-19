@@ -14,16 +14,14 @@
  *  limitations under the License.
  */
 
-import Transport from './transport/Transport';
+import {Transport} from './transport/Transport';
 import {Options} from './Options';
-import Message from './message/Message';
-import MessageChannel from './message/MessageChannel'
+import {Message, MessageChannel, MessageListener} from './message';
 import {KeyStore} from './KeyStore';
 import {privateKeyDump} from './Helpers';
-import AdbConnectionInformation from './AdbConnectionInformation';
-import Stream from './Stream';
-import Shell from './Shell';
-import MessageListener from './message/MessageListener';
+import {AdbConnectionInformation} from './AdbConnectionInformation';
+import {Stream} from './Stream';
+import {Shell} from './Shell';
 
 const VERSION = 0x01000000;
 const VERSION_NO_CHECKSUM = 0x01000001;
@@ -32,7 +30,7 @@ const MAX_PAYLOAD = 256 * 1024;
 const MACHINE_BANNER: string = 'host::\0';
 type MessageCallback = (msg: Message) => void;
 
-export default class AdbClient implements MessageListener {
+export class AdbClient implements MessageListener {
   private messageChannel: MessageChannel;
   private messageCallback: MessageCallback | null = null;
   private openStreams: Set<Stream> = new Set();

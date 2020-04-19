@@ -14,10 +14,10 @@
  *  limitations under the License.
  */
 
-import MessageHeader from './MessageHeader';
-import { toB64 } from '../Helpers';
+import {MessageHeader} from './MessageHeader';
+import {toB64} from '../Helpers';
 
-export default class Message {
+export class Message {
   constructor(
     readonly header: MessageHeader,
     readonly data?: DataView,

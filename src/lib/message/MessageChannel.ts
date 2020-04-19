@@ -14,13 +14,13 @@
  *  limitations under the License.
  */
 
-import Transport from '../transport/Transport';
-import Message from './Message';
-import MessageHeader from './MessageHeader';
+import {Transport} from '../transport';
+import {Message} from './Message';
+import {MessageHeader} from './MessageHeader';
 import {Options} from '../Options';
-import MessageListener from './MessageListener';
+import {MessageListener} from './MessageListener';
 
-export default class MessageChannel {
+export class MessageChannel {
   private active = true;
 
   constructor(

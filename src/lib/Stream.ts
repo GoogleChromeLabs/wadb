@@ -14,13 +14,13 @@
  *  limitations under the License.
  */
 
-import AdbClient from './AdbClient';
-import Message from './message/Message';
+import {AdbClient} from './AdbClient';
+import {Message} from './message';
 import {Options} from './Options';
 import {toHex32} from './Helpers';
-import SyncFrame from './SyncFrame';
+import {SyncFrame} from './SyncFrame';
 
-export default class Stream {
+export class Stream {
   private static nextId: number = 1;
   private awaitMessage: ((msg: Message) => void) | null = null;
 

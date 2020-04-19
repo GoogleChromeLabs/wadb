@@ -14,11 +14,7 @@
  *  limitations under the License.
  */
 
-import WebUsbTransport from '../src/lib/transport/WebUsbTransport';
-import AdbClient from '../src/lib/AdbClient';
-import {Options} from '../src/lib/Options';
-import {KeyStore} from '../src/lib/KeyStore';
-import Shell from '../src/lib/Shell';
+import {AdbClient, KeyStore, Options, Shell, WebUsbTransport} from 'wadb';
 
 const connectButton = document.querySelector('#connect')!;
 const disconnectButton = document.querySelector('#disconnect')!;

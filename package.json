@@ -1,13 +1,19 @@
 {
-  "name": "adboverwebusb",
-  "version": "1.0.0",
+  "name": "wadb",
+  "version": "0.1.0",
   "description": "",
-  "main": "index.js",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
     "lint": "tslint \"src/**/*.ts\"",
     "lint-fix": "tslint \"src/**/*.ts\" --fix",
-    "build": "tsc"
+    "build": "tsc -p ."
   },
+  "files": [
+    "dist/lib",
+    "dist/index.d.ts",
+    "dist/index.js"
+  ],
   "author": "André Cipriani Bandarra",
   "license": "Apache-2.0",
   "devDependencies": {

@@ -14,7 +14,7 @@
  *  limitations under the License.
  */
 
-import Transport from './Transport';
+import {Transport} from './Transport';
 import {hexdump} from '../Helpers';
 import {Options} from '../Options';
 
@@ -31,7 +31,7 @@ interface DeviceMatch {
 /**
  * An implementation of {@link Transport} using WebUSB as the tranport layer.
  */
-export default class WebUsbTransport implements Transport {
+export class WebUsbTransport implements Transport {
   private constructor(
     readonly device: USBDevice,
     readonly match: DeviceMatch,

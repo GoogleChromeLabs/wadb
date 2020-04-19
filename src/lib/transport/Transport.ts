@@ -17,7 +17,7 @@
 /**
  * A transport layer for data. Implementations must provide a read and write method.
  */
-export default interface Transport {
+export interface Transport {
   /**
    * Writes data to the transport layer.
    * @param {DataView} data the data to be written to the layer.

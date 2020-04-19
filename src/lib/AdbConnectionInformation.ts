@@ -20,7 +20,7 @@
  const FEATURES_KEY = 'features';
  const DEFAULT_PRODUCT_VALUE = '<unkwnown>';
 
- export default class AdbConnectionInformation {
+ export class AdbConnectionInformation {
   constructor(
     readonly productName: string,
     readonly productDevice: string,

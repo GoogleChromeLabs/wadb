@@ -14,8 +14,8 @@
  *  limitations under the License.
  */
 
-import Message from './Message';
+import {Message} from './Message';
 
-export default interface MessageListener {
+export interface MessageListener {
   newMessage(msg: Message): void;
 }

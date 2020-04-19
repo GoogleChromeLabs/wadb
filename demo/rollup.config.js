@@ -17,10 +17,10 @@
 import {terser} from 'rollup-plugin-terser';
 
 export default [{
-  input: 'dist/demos/main.js',
+  input: 'dist/main.js',
   output: [{
     file: 'dist/bundle.js',
-    format: 'umd'
+    format: 'iife'
   }, {
     file: 'dist/bundle.min.js',
     format: 'iife',
@@ -28,10 +28,10 @@ export default [{
     plugins: [terser()]    
   }]
 }, {
-  input: 'dist/demos/interactiveshell.js',
+  input: 'dist/interactiveshell.js',
   output: [{
     file: 'dist/interactiveshell-bundle.js',
-    format: 'umd'
+    format: 'iife'
   }, {
     file: 'dist/interactiveshell-bundle.min.js',
     format: 'iife',
