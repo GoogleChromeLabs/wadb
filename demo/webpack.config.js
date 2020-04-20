@@ -18,8 +18,9 @@ const path = require('path');
 
 module.exports = {
   entry: {
-    main: './src/main.ts',
-    interactiveshell: './src/interactiveshell.ts'
+    screenrecord: './src/screenrecord.ts',
+    interactiveshell: './src/interactiveshell.ts',
+    livestream: './src/livestream.ts'
   },
   module: {
     rules: [

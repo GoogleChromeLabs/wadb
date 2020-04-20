@@ -17,8 +17,8 @@
   <head>
     <meta name="viewport" content="initial-scale=1, maximum-scale=1">
     <meta charset="utf-8">
-    <title>Web Screenrecord</title>
-    <script src="dist/screenrecord.bundle.js" defer></script>
+    <title>Web ADB Livestream</title>    
+    <script src="dist/livestream.bundle.js" defer></script>
     <style>
       html {
         font-family: 'Roboto', sans-serif;
@@ -105,22 +105,6 @@
         background-position-y: 0px;        
       }
 
-      /* #download {
-        background-image: url(./assets/save.svg);
-        background-repeat: no-repeat;
-        background-position-x: 4px;
-        background-position-y: 0px;
-        text-decoration: none;
-        color: black;
-        background-color: lightgrey;
-        width: 14px;
-      } */
-
-      #screenshot {
-        max-width: 100%;
-        max-height: 60vh;
-      }
-
       .hidden {
         display: none;
       }
@@ -151,15 +135,11 @@
         <div class="buttons">
           <button id="start" class="button">Record</button>
           <button id="stop" class="button hidden">Stop</button>
-          <button id="screencapture" class="button">Screenshot</button>
         </div>
       </div>
       <div class="video-container">
         <h2>Output:</h2>
-          <video id="video" controls class="hidden"></video>
-          <img id="screenshot" class="hidden"></img>
-          <br/>
-          <a id="download" class='hidden' href="#" download="recording.mp4">Download</a>          
+        <video id="video" controls class="hidden"></video>
       </div>
   </div>
   </body>
