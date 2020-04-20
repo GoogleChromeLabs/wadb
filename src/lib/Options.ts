@@ -15,8 +15,8 @@
  */
 
  export interface Options {
-   debug: boolean,
-   dump: boolean,
-   useChecksum: boolean,
-   keySize: number,
+   debug: boolean;
+   dump: boolean;
+   useChecksum: boolean;
+   keySize: number;
  }

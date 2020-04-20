@@ -15,15 +15,15 @@
  */
 
 export default class Log {
-  debug(message: string) {
+  debug(message: string): void {
     console.log(message);
   }
 
-  info(message: string) {
+  info(message: string): void {
     console.info(message);
   }
 
-  error(message: string) {
+  error(message: string): void {
     console.error(message);
   }
 }

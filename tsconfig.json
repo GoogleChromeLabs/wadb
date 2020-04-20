@@ -1,12 +1,13 @@
 {
   "compilerOptions": {
-    "target": "es2020",
-    "module": "es2015",
+    "target": "es5",
+    "module": "commonjs",
     "outDir": "./dist",
     "strict": true,
     "forceConsistentCasingInFileNames": true,
     "declaration": true,
-    "moduleResolution": "node"
+    "moduleResolution": "node",
+    "lib": ["ES2015", "DOM"]
   },
   "typedocOptions": {
     "mode": "modules",

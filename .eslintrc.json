@@ -1,0 +1,19 @@
+{
+  "extends": [
+    "plugin:@typescript-eslint/eslint-recommended",
+    "plugin:@typescript-eslint/recommended"
+  ],
+  "parser": "@typescript-eslint/parser",
+  "plugins": ["@typescript-eslint"],
+  "parserOptions": {
+    "ecmaVersion": 2017,
+    "sourceType": "module"
+  },
+  "rules": {
+    "@typescript-eslint/no-non-null-assertion": 0
+  },
+  "env": {
+    "node": true,
+    "jasmine": true
+  }
+}

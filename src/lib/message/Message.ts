@@ -33,7 +33,7 @@ export class Message {
   }
 
   static newMessage(
-      cmd: string, arg0: number, arg1: number, useChecksum: boolean, data?: DataView) {
+      cmd: string, arg0: number, arg1: number, useChecksum: boolean, data?: DataView): Message {
     let checksum = 0;
     let byteLength = 0;
     if (data) {

@@ -44,7 +44,7 @@ export class WebUsbTransport implements Transport {
   /**
    *  Releases the interface and closes the connection to the WebUSB device
    */
-  async close() {
+  async close(): Promise<void> {
     await this.device.releaseInterface(this.match.intf.interfaceNumber);
     await this.device.close();
   }
@@ -54,7 +54,7 @@ export class WebUsbTransport implements Transport {
    *
    * @param {ArrayBuffer} data the data to be sent to the interface
    */
-  async write(data: ArrayBuffer) {
+  async write(data: ArrayBuffer): Promise<void> {
     if (this.options.dump) {
       hexdump(new DataView(data), '' + this.endpointOut + '==> ');
     }
@@ -79,7 +79,7 @@ export class WebUsbTransport implements Transport {
   /**
    * @returns {boolean} true if the connected device is an ADB device.
    */
-	isAdb() {
+	isAdb(): boolean {
 		const match = WebUsbTransport.findMatch(this.device, ADB_DEVICE);
 		return match != null;
 	};
@@ -87,7 +87,7 @@ export class WebUsbTransport implements Transport {
   /**
    * @returns {boolean} true if the connected device is a Fastboot device.
    */
-	isFastboot(){
+	isFastboot(): boolean {
 		const match = WebUsbTransport.findMatch(this.device, FASTBOOT_DEVICE);
 		return match != null;
   };
@@ -97,7 +97,7 @@ export class WebUsbTransport implements Transport {
    *
    * @param options
    */
-  static async open(options: any): Promise<WebUsbTransport> {
+  static async open(options: Options): Promise<WebUsbTransport> {
     const device = await navigator.usb.requestDevice({filters: DEVICE_FILTERS});
     await device.open();
 
@@ -143,7 +143,7 @@ export class WebUsbTransport implements Transport {
     return null;
   }
 
-  private static getEndpointNum(endpoints: USBEndpoint[], dir: 'in' | 'out', type: string = 'bulk'): number {
+  private static getEndpointNum(endpoints: USBEndpoint[], dir: 'in' | 'out', type = 'bulk'): number {
     for(const ep of endpoints) {
       if (ep.direction === dir && ep.type === type) {
         return ep.endpointNumber;

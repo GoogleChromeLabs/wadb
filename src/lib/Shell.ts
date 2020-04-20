@@ -29,7 +29,7 @@ export class Shell {
     this.loopRead();
   }
 
-  private async loopRead() {
+  private async loopRead(): Promise<void> {
     try {
       let message;
       do {
@@ -57,7 +57,7 @@ export class Shell {
 
   private waitForMessage(cmd: string): Promise<Message> {
     return new Promise<Message>(resolve => {
-      const callback = (message: Message) => {
+      const callback = (message: Message): void => {
         if (message.header.cmd === cmd) {
           const pos = this.messageListener.indexOf(callback);
           this.messageListener.splice(pos, 1);
@@ -68,13 +68,13 @@ export class Shell {
     });
   }
 
-  async write(command: string) {
+  async write(command: string): Promise<void> {
     const data = this.textEncoder.encode(command);
     await this.stream.write('WRTE', new DataView(data.buffer));
     await this.waitForMessage('OKAY');
   }
 
-  async close() {
+  async close(): Promise<void> {
     this.closed = true;
     await this.write('CLSE');
   }

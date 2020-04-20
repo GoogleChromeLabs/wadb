@@ -14,19 +14,30 @@
  *  limitations under the License.
  */
 
-export function toHex8(num: number) {
+function paddit(text: string, width: number, padding: string): string {
+  const padlen = width - text.length;
+  let padded = '';
+
+  for (let i = 0; i < padlen; i++) {
+      padded += padding;
+    }
+
+  return padded + text;
+}
+
+export function toHex8(num: number): string {
   return paddit(num.toString(16), 2, '0');
 }
 
-export function toHex16(num: number) {
+export function toHex16(num: number): string {
   return paddit(num.toString(16), 4, '0');
 }
 
-export function toHex32(num: number) {
+export function toHex32(num: number): string {
   return paddit(num.toString(16), 8, '0');
 }
 
-export function hexdump(view: DataView, prefix: string = '') {
+export function hexdump(view: DataView, prefix = ''): void {
   const decoder = new TextDecoder();
   for (let i = 0; i < view.byteLength; i += 16) {
     const max = (view.byteLength - i) > 16 ? 16 : (view.byteLength - i);
@@ -44,6 +55,10 @@ export function hexdump(view: DataView, prefix: string = '') {
     row += ' | ' + decoder.decode(new DataView(view.buffer, i, max));
     console.log(row);
   }
+}
+
+export function toB64(buffer: ArrayBuffer): string {
+  return btoa(new Uint8Array(buffer).reduce((s, b) => s + String.fromCharCode(b), ''));
 }
 
 export async function privateKeyDump(key: CryptoKeyPair): Promise<void> {
@@ -66,10 +81,6 @@ export async function publicKeyDump(key: CryptoKeyPair): Promise<void> {
   console.log(`-----BEGIN PUBLIC KEY-----\n${toB64(pubKey)}'\n-----END PUBLIC KEY-----`);
 }
 
-export function toB64(buffer: ArrayBuffer): string {
-  return btoa(new Uint8Array(buffer).reduce((s, b) => s + String.fromCharCode(b), ''));
-}
-
 export function encodeCmd(cmd: string): number {
   const encoder = new TextEncoder();
   const buffer = encoder.encode(cmd).buffer;
@@ -83,15 +94,4 @@ export function decodeCmd(cmd: number): string {
   const view = new DataView(buffer);
   view.setUint32(0, cmd, true);
   return decoder.decode(buffer);
-}
-
-function paddit(text: string, width: number, padding: string) {
-  const padlen = width - text.length;
-  let padded = '';
-
-  for (let i = 0; i < padlen; i++) {
-      padded += padding;
-    }
-
-  return padded + text;
 }

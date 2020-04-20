@@ -21,7 +21,7 @@ import {toHex32} from './Helpers';
 import {SyncFrame} from './SyncFrame';
 
 export class Stream {
-  private static nextId: number = 1;
+  private static nextId = 1;
   private awaitMessage: ((msg: Message) => void) | null = null;
 
   constructor(readonly client: AdbClient, private service: string, private localId: number,
@@ -51,7 +51,7 @@ export class Stream {
     return true;
   }
 
-  async write(cmd: string, data?: DataView) {
+  async write(cmd: string, data?: DataView): Promise<void> {
     const message = this.newMessage(cmd, data);
     await this.client.sendMessage(message);
   }

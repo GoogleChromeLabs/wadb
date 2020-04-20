@@ -5,9 +5,10 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "lint": "tslint \"src/**/*.ts\"",
-    "lint-fix": "tslint \"src/**/*.ts\" --fix",
-    "build": "tsc -p ."
+    "lint": "eslint \"src/**/*.{js,ts}\"",
+    "lint-fix": "eslint \"src/**/*.{js,ts}\"",
+    "build": "tsc -p .",
+    "test": "tsc -p . && jasmine --config=jasmine.json"
   },
   "files": [
     "dist/lib",
@@ -17,7 +18,12 @@
   "author": "André Cipriani Bandarra",
   "license": "Apache-2.0",
   "devDependencies": {
+    "@types/jasmine": "^3.5.10",
     "@types/w3c-web-usb": "^1.0.4",
+    "@typescript-eslint/eslint-plugin": "^2.28.0",
+    "@typescript-eslint/parser": "^2.28.0",
+    "eslint": "^6.8.0",
+    "jasmine": "^3.5.0",
     "tslint": "^6.0.0",
     "typescript": "^3.8.3"
   }

@@ -27,7 +27,7 @@ const VERSION = 0x01000000;
 const VERSION_NO_CHECKSUM = 0x01000001;
 const MAX_PAYLOAD = 256 * 1024;
 
-const MACHINE_BANNER: string = 'host::\0';
+const MACHINE_BANNER = 'host::\0';
 type MessageCallback = (msg: Message) => void;
 
 export class AdbClient implements MessageListener {
@@ -47,19 +47,20 @@ export class AdbClient implements MessageListener {
       this.messageChannel = new MessageChannel(transport, options, this);
   }
 
-  registerStream(stream: Stream) {
+  registerStream(stream: Stream): void {
     this.openStreams.add(stream);
     console.log(this.openStreams);
   }
 
-  unregisterStream(stream: Stream) {
+  unregisterStream(stream: Stream): void {
     this.openStreams.delete(stream);
     console.log(this.openStreams);
   }
 
-  newMessage(msg: Message) {
+  newMessage(msg: Message): void {
     // Check if this message matches one of the open streams.
-    for (const stream of this.openStreams) {
+    const streams = Array.from(this.openStreams);
+    for (const stream of streams) {
       if (stream.consumeMessage(msg)) {
         return;
       }
@@ -104,7 +105,7 @@ export class AdbClient implements MessageListener {
     return AdbConnectionInformation.fromDataView(response.data);
   }
 
-  async disconnect() {
+  async disconnect(): Promise<void> {
     this.messageChannel.close();
   }
 
@@ -145,7 +146,7 @@ export class AdbClient implements MessageListener {
       throw new Error('AUTH message doens\'t contain data');
     }
 
-    let token = authResponse.data.buffer;
+    const token = authResponse.data.buffer;
 
     // Try signing with one of the stored keys
     const keys = await this.keyStore.loadKeys();
@@ -177,7 +178,7 @@ export class AdbClient implements MessageListener {
     return keyResponse;
   }
 
-  public async sendMessage(m: Message) {
+  public async sendMessage(m: Message): Promise<void> {
     await this.messageChannel.write(m);
   }
 

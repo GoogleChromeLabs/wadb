@@ -30,7 +30,7 @@ export class MessageChannel {
     this.readLoop();
   }
 
-  private async readLoop() {
+  private async readLoop(): Promise<void> {
     let message: Message;
     do {
       message = await this.read();
@@ -60,11 +60,11 @@ export class MessageChannel {
     return message;
   }
 
-  close() {
+  close(): void {
     this.active = false;
   }
 
-  async write(m: Message) {
+  async write(m: Message): Promise<void> {
     if (this.options.debug) {
       console.log('>>>', m);
     }
