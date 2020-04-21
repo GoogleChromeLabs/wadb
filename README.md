@@ -23,7 +23,7 @@ A non-exhaustive list of things that not implemented:
     keySize: 2048,
   };
 
-  const transport = await Transport.open(options);
+  const transport = await WebUsbTransport.open(options);
   const adbClient = new AdbClient(transport, options, keyStore);
   await adbClient.connect();
 ```
