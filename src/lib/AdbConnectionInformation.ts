@@ -14,13 +14,13 @@
  *  limitations under the License.
  */
 
- const PRODUCT_NAME_KEY = 'ro.product.name';
- const PRODUCT_MODEL_KEY = 'ro.product.model';
- const PRODUCT_DEVICE_KEY = 'ro.product.device';
- const FEATURES_KEY = 'features';
- const DEFAULT_PRODUCT_VALUE = '<unkwnown>';
+const PRODUCT_NAME_KEY = 'ro.product.name';
+const PRODUCT_MODEL_KEY = 'ro.product.model';
+const PRODUCT_DEVICE_KEY = 'ro.product.device';
+const FEATURES_KEY = 'features';
+const DEFAULT_PRODUCT_VALUE = '<unkwnown>';
 
- export class AdbConnectionInformation {
+export class AdbConnectionInformation {
   constructor(
     readonly productName: string,
     readonly productDevice: string,
@@ -30,43 +30,43 @@
 
     }
 
-    static fromDataView(input: DataView): AdbConnectionInformation {
-      const textDecoder = new TextDecoder();
-      const decodedInput = textDecoder.decode(input);
-      return AdbConnectionInformation.fromString(decodedInput);
-    }
+  static fromDataView(input: DataView): AdbConnectionInformation {
+    const textDecoder = new TextDecoder();
+    const decodedInput = textDecoder.decode(input);
+    return AdbConnectionInformation.fromString(decodedInput);
+  }
 
-    /**
-     * Creates an AdbConnectionInformation from a Connection string
-     * @param input the string sent as data from a Connection response
-     */
-    static fromString(input: string): AdbConnectionInformation {
-      const start = input.indexOf('::');
-      const properties = input.substring(start + 2).split(';');
-      let productName = DEFAULT_PRODUCT_VALUE;
-      let productDevice = DEFAULT_PRODUCT_VALUE;
-      let productModel = DEFAULT_PRODUCT_VALUE;
-      let features: string[] = [];
-      for (const property of properties) {
-        if (property.startsWith(PRODUCT_NAME_KEY)) {
-          productName = property.substring(PRODUCT_NAME_KEY.length + 1);
-          continue;
-        }
-
-        if (property.startsWith(PRODUCT_MODEL_KEY)) {
-          productModel = property.substring(PRODUCT_MODEL_KEY.length + 1);
-          continue;
-        }
-
-        if (property.startsWith(PRODUCT_DEVICE_KEY)) {
-          productDevice = property.substring(PRODUCT_DEVICE_KEY.length + 1);
-          continue;
-        }
-
-        if (property.startsWith(FEATURES_KEY)) {
-          features = property.substring(FEATURES_KEY.length + 1).split(',');
-        }
+  /**
+   * Creates an AdbConnectionInformation from a Connection string
+   * @param input the string sent as data from a Connection response
+   */
+  static fromString(input: string): AdbConnectionInformation {
+    const start = input.indexOf('::');
+    const properties = input.substring(start + 2).split(';');
+    let productName = DEFAULT_PRODUCT_VALUE;
+    let productDevice = DEFAULT_PRODUCT_VALUE;
+    let productModel = DEFAULT_PRODUCT_VALUE;
+    let features: string[] = [];
+    for (const property of properties) {
+      if (property.startsWith(PRODUCT_NAME_KEY)) {
+        productName = property.substring(PRODUCT_NAME_KEY.length + 1);
+        continue;
       }
-      return new AdbConnectionInformation(productName, productDevice, productModel, features);
+
+      if (property.startsWith(PRODUCT_MODEL_KEY)) {
+        productModel = property.substring(PRODUCT_MODEL_KEY.length + 1);
+        continue;
+      }
+
+      if (property.startsWith(PRODUCT_DEVICE_KEY)) {
+        productDevice = property.substring(PRODUCT_DEVICE_KEY.length + 1);
+        continue;
+      }
+
+      if (property.startsWith(FEATURES_KEY)) {
+        features = property.substring(FEATURES_KEY.length + 1).split(',');
+      }
     }
- }
+    return new AdbConnectionInformation(productName, productDevice, productModel, features);
+  }
+}

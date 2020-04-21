@@ -34,12 +34,12 @@ export class Queue<T> {
 
   /**
    * Adds an item to the queue.
-   * @param data 
+   * @param data
    */
   enqueue(data: T): void {
     const newNode = new QueueEntry<T>(data);
     if (this.tail) {
-      this.tail.next = newNode;    
+      this.tail.next = newNode;
     }
     this.tail = newNode;
 
@@ -57,7 +57,7 @@ export class Queue<T> {
   dequeue(): T {
     if (this.isEmpty()) {
       throw new Error('Cannot dequeue. Queue is empty');
-    } 
+    }
     const node = this.head!.data;
     this.head = this.head!.next;
     return node;
@@ -75,7 +75,7 @@ export class Queue<T> {
 /**
  * The AsyncBlockingQueue implements a queue with an asynchronous programming model. Items can
  * be added to the Queue as usual. When dequeing, a Promise is returned.
- * 
+ *
  * The promise will resolve instantly if the Queue is not empty. If the Queue is empty, the Promise
  * will be resolved when a new item is added to the queue.
  */
@@ -92,7 +92,7 @@ export class AsyncBlockingQueue<T> {
 
   /**
    * Enqueues an item
-   * @param data 
+   * @param data
    */
   enqueue(data: T): void {
     if (this.resolverQueue.isEmpty()) {

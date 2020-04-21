@@ -5,8 +5,8 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "lint": "eslint \"src/**/*.{js,ts}\"",
-    "lint-fix": "eslint \"src/**/*.{js,ts}\"",
+    "lint": "eslint \"src/**/*.ts\"",
+    "lint-fix": "eslint \"src/**/*.ts\" --fix",
     "build": "tsc -p .",
     "test": "tsc -p . && jasmine --config=jasmine.json"
   },

@@ -54,8 +54,8 @@ describe('Queues', () => {
         expect(queue.dequeue()).toBe('two');
         queue.enqueue('three');
         expect(queue.dequeue()).toBe('three');
-        expect(queue.isEmpty()).toBeTrue();      
-      });    
+        expect(queue.isEmpty()).toBeTrue();
+      });
     });
   });
 
@@ -64,7 +64,7 @@ describe('Queues', () => {
       it('Constructs and empty queue', () => {
         const queue = new AsyncBlockingQueue<string>();
         expect(queue.hasPendingPromises()).toBeFalse();
-        expect(queue.hasPendingResolvers()).toBeFalse();      
+        expect(queue.hasPendingResolvers()).toBeFalse();
       });
     });
 
@@ -78,7 +78,7 @@ describe('Queues', () => {
 
       it('enqueue after dequeue clears Promises and Resolvers', () => {
         const queue = new AsyncBlockingQueue<string>();
-        queue.dequeue();        
+        queue.dequeue();
         queue.enqueue('test');
         expect(queue.hasPendingPromises()).toBeFalse();
         expect(queue.hasPendingResolvers()).toBeFalse();
@@ -110,7 +110,7 @@ describe('Queues', () => {
 
       it('Dequeues correctly after enqueue', async () => {
         const queue = new AsyncBlockingQueue<string>();
-        const promise = queue.dequeue();        
+        const promise = queue.dequeue();
         queue.enqueue('test');
         const value = await promise;
         expect(value).toBe('test');
@@ -119,9 +119,9 @@ describe('Queues', () => {
       it('Dequeues in the correct order, with enqueues then dequeues', async () => {
         const queue = new AsyncBlockingQueue<string>();
         queue.enqueue('one');
-        queue.enqueue('two');        
+        queue.enqueue('two');
         expect(await queue.dequeue()).toBe('one');
-        expect(await queue.dequeue()).toBe('two');        
+        expect(await queue.dequeue()).toBe('two');
       });
 
       it('Dequeues in the correct order, enqueue > dequeue > dequeue > enqueue', async () => {
@@ -130,20 +130,20 @@ describe('Queues', () => {
         expect(await queue.dequeue()).toBe('one');
         const promise = queue.dequeue();
         queue.enqueue('two');
-        expect(await promise).toBe('two');        
+        expect(await promise).toBe('two');
       });
 
       it('Dequeues in the correct order, dequeue > dequeue > enqueue > enqueue', async () => {
         const queue = new AsyncBlockingQueue<string>();
         const p1 = queue.dequeue();
         const p2 = queue.dequeue();
-        
-        queue.enqueue('one');    
+
+        queue.enqueue('one');
         queue.enqueue('two');
 
         expect(await p1).toBe('one');
         expect(await p2).toBe('two');
-      });      
+      });
     });
   });
 });

@@ -10,7 +10,9 @@
     "sourceType": "module"
   },
   "rules": {
-    "@typescript-eslint/no-non-null-assertion": 0
+    "@typescript-eslint/no-non-null-assertion": "off",
+    "no-trailing-spaces": "error",
+    "eol-last": "error"
   },
   "env": {
     "node": true,
