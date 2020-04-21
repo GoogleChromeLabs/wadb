@@ -19,10 +19,11 @@ import {Message} from './message';
 import {Options} from './Options';
 import {toHex32} from './Helpers';
 import {SyncFrame} from './SyncFrame';
+import {AsyncBlockingQueue} from './Queues';
 
 export class Stream {
   private static nextId = 1;
-  private awaitMessage: ((msg: Message) => void) | null = null;
+  private messageQueue = new AsyncBlockingQueue<Message>();
 
   constructor(readonly client: AdbClient, private service: string, private localId: number,
      private remoteId: number, private options: Options) {
@@ -44,10 +45,7 @@ export class Stream {
         msg.header.arg1 === 0 || msg.header.arg1 !== this.localId) {
       return false;
     }
-    if (this.awaitMessage) {
-      this.awaitMessage(msg);
-      this.awaitMessage = null;
-    }
+    this.messageQueue.enqueue(msg);
     return true;
   }
 
@@ -57,9 +55,7 @@ export class Stream {
   }
 
   async read(): Promise<Message> {
-    return new Promise<Message>(resolve => {
-      this.awaitMessage = resolve;
-    });
+    return this.messageQueue.dequeue();
   }
 
   /**

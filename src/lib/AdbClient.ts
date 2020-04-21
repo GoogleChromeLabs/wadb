@@ -22,6 +22,7 @@ import {privateKeyDump} from './Helpers';
 import {AdbConnectionInformation} from './AdbConnectionInformation';
 import {Stream} from './Stream';
 import {Shell} from './Shell';
+import { AsyncBlockingQueue } from './Queues';
 
 const VERSION = 0x01000000;
 const VERSION_NO_CHECKSUM = 0x01000001;
@@ -32,7 +33,7 @@ type MessageCallback = (msg: Message) => void;
 
 export class AdbClient implements MessageListener {
   private messageChannel: MessageChannel;
-  private messageCallback: MessageCallback | null = null;
+  private messageQueue = new AsyncBlockingQueue<Message>();
   private openStreams: Set<Stream> = new Set();
 
   /**
@@ -65,16 +66,11 @@ export class AdbClient implements MessageListener {
         return;
       }
     }
-
-    if (this.messageCallback) {
-      this.messageCallback(msg);
-    }
+    this.messageQueue.enqueue(msg);
   }
 
   public async awaitMessage(): Promise<Message> {
-    return new Promise((resolve) => {
-      this.messageCallback = resolve;
-    });
+    return this.messageQueue.dequeue();
   }
 
   async connect(): Promise<AdbConnectionInformation> {
