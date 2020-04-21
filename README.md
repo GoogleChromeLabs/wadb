@@ -49,9 +49,9 @@ A non-exhaustive list of things that not implemented:
 ```
 
 ## Related Documents
-https://github.com/webadb/webadb.js
-https://github.com/cstyan/adbDocumentation
-https://android.googlesource.com/platform/system/core/+/master/adb/
+- https://github.com/webadb/webadb.js
+- https://github.com/cstyan/adbDocumentation
+- https://android.googlesource.com/platform/system/core/+/master/adb/
 
 ## Contributing
 
