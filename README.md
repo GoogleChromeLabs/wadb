@@ -1,6 +1,6 @@
 # An ADB Implementation using WebUSB
 
-This project is a TypeScript implementationg of the Android Debug Bridge(ADB) protocol over WebUSB.
+This project is a TypeScript implementation of the Android Debug Bridge(ADB) protocol over WebUSB.
 The implementation inspired on the [webadb.js][1], with the main difference being that
 implementation supports multiple concurrent streams.
 
