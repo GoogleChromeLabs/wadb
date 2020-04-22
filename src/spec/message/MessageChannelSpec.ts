@@ -17,6 +17,7 @@
 import {Transport} from "../../lib/transport";
 import {Message, MessageChannel, MessageListener, MessageHeader} from "../../lib/message";
 import {Options} from "../../lib/Options";
+import {AsyncBlockingQueue} from "../../lib/Queues";
 
 class MockTransport implements Transport {
   receivedData: DataView[] = [];
@@ -57,10 +58,10 @@ class MockTransport implements Transport {
 }
 
 class MockMessageListener implements MessageListener {
-  receivedMessages: Message[] = [];
+  messageQueue = new AsyncBlockingQueue<Message>(); 
 
   newMessage(msg: Message): void {
-    this.receivedMessages.push(msg);
+    this.messageQueue.enqueue(msg);
   }
 }
 
@@ -108,17 +109,12 @@ describe('MessageChannel', () => {
       transport = new MockTransport();
     });
 
-    it('Reads a Message', () => {
+    it('Reads a Message', async () => {
       const msg = Message.newMessage('MOCK', 0, 0, true);
       transport.pushData(msg.header.toDataView().buffer);
       messageChannel = new MessageChannel(transport, options, messageListener);
-
-      // We call setTimeout to yield the thread and allow the eventLoop to add the Message to
-      // our thread.
-      setTimeout(() => {
-        expect(messageListener.receivedMessages.length).toBe(1);
-        messageChannel.close();
-      }, 5);
+      const receivedMessage = await messageListener.messageQueue.dequeue();
+      expect(receivedMessage.header).toEqual(msg.header);
     });
   });
 });
