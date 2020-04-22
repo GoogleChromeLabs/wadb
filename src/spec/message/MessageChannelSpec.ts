@@ -25,7 +25,8 @@ class MockTransport implements Transport {
   pos = 0;
   reject?: (reason: Error) => void;
 
-  pushData(buffer: ArrayBuffer): void {
+  pushData(data: DataView): void {
+    const buffer = data.buffer;
     const tmp = new Uint8Array(this.pendingData.byteLength + buffer.byteLength);
     tmp.set(new Uint8Array(this.pendingData), 0);
     tmp.set(new Uint8Array(buffer), this.pendingData.byteLength);
@@ -104,17 +105,39 @@ describe('MessageChannel', () => {
   });
 
   describe('#readLoop', () => {
+    const messageWithoutData = Message.newMessage('MOCK', 0, 0, true);
+    const data = new DataView(new TextEncoder().encode('test').buffer);
+    const messageWithData = Message.newMessage('MOCK', 0, 0, true, data);
+
     beforeEach(() => {
       messageListener = new MockMessageListener();
       transport = new MockTransport();
     });
 
-    it('Reads a Message', async () => {
-      const msg = Message.newMessage('MOCK', 0, 0, true);
-      transport.pushData(msg.header.toDataView().buffer);
+    it('Receives a Message', async () => {
+      transport.pushData(messageWithoutData.header.toDataView());
       messageChannel = new MessageChannel(transport, options, messageListener);
       const receivedMessage = await messageListener.messageQueue.dequeue();
-      expect(receivedMessage.header).toEqual(msg.header);
+      expect(receivedMessage.header).toEqual(messageWithoutData.header);
     });
+
+    it('Receives a Message with data', async () => {
+      transport.pushData(messageWithData.header.toDataView());
+      transport.pushData(messageWithData.data!);
+      messageChannel = new MessageChannel(transport, options, messageListener);
+      const receivedMessage = await messageListener.messageQueue.dequeue();
+      expect(receivedMessage).toEqual(messageWithData);
+    });
+
+    it('Receives Messages in the right order', async () => {
+      transport.pushData(messageWithoutData.header.toDataView());      
+      transport.pushData(messageWithData.header.toDataView());
+      transport.pushData(messageWithData.data!);
+      messageChannel = new MessageChannel(transport, options, messageListener);
+      const receivedMessage1 = await messageListener.messageQueue.dequeue();
+      const receivedMessage2 = await messageListener.messageQueue.dequeue();
+      expect(receivedMessage1).toEqual(messageWithoutData);
+      expect(receivedMessage2).toEqual(messageWithData);
+    });    
   });
 });
