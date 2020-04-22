@@ -14,57 +14,10 @@
  *  limitations under the License.
  */
 
-import {Transport} from "../../lib/transport";
-import {Message, MessageChannel, MessageListener, MessageHeader} from "../../lib/message";
-import {Options} from "../../lib/Options";
-import {AsyncBlockingQueue} from "../../lib/Queues";
-
-class MockTransport implements Transport {
-  receivedData: DataView[] = [];
-  pendingData: ArrayBuffer = new ArrayBuffer(0);
-  pos = 0;
-  reject?: (reason: Error) => void;
-
-  pushData(data: DataView): void {
-    const buffer = data.buffer;
-    const tmp = new Uint8Array(this.pendingData.byteLength + buffer.byteLength);
-    tmp.set(new Uint8Array(this.pendingData), 0);
-    tmp.set(new Uint8Array(buffer), this.pendingData.byteLength);
-    this.pendingData = tmp.buffer;
-  }
-
-  async read(len: number): Promise<DataView> {
-    // Our buffer doesn't have enough data.
-    if (this.pendingData.byteLength - this.pos < len) {
-      return new Promise((_, reject) => {
-        this.reject = reject;
-      });
-    }
-
-    const dataView = new DataView(this.pendingData, this.pos, len);
-    this.pos += len;
-    return dataView;
-  }
-
-  async write(data: ArrayBuffer): Promise<void> {
-    this.receivedData.push(new DataView(data));
-    return Promise.resolve();
-  }
-
-  close(): void {
-    if (this.reject) {
-      this.reject(new Error('Transport Closed'));
-    }
-  }
-}
-
-class MockMessageListener implements MessageListener {
-  messageQueue = new AsyncBlockingQueue<Message>(); 
-
-  newMessage(msg: Message): void {
-    this.messageQueue.enqueue(msg);
-  }
-}
+import {MockTransport} from '../mock/MockTransport';
+import {MockMessageListener} from '../mock/MockMessageListener';
+import {Message, MessageChannel, MessageHeader} from '../../lib/message';
+import {Options} from '../../lib/Options';
 
 describe('MessageChannel', () => {
   const options = {
