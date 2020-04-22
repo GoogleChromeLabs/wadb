@@ -20,14 +20,39 @@ import {Options} from "../../lib/Options";
 
 class MockTransport implements Transport {
   receivedData: DataView[] = [];
+  pendingData: ArrayBuffer = new ArrayBuffer(0);
+  pos = 0;
+  reject?: (reason: Error) => void;
+
+  pushData(buffer: ArrayBuffer): void {
+    const tmp = new Uint8Array(this.pendingData.byteLength + buffer.byteLength);
+    tmp.set(new Uint8Array(this.pendingData), 0);
+    tmp.set(new Uint8Array(buffer), this.pendingData.byteLength);
+    this.pendingData = tmp.buffer;
+  }
 
   async read(len: number): Promise<DataView> {
-    return new DataView(new ArrayBuffer(len));
+    // Our buffer doesn't have enough data.
+    if (this.pendingData.byteLength - this.pos < len) {
+      return new Promise((_, reject) => {
+        this.reject = reject;
+      });
+    }
+
+    const dataView = new DataView(this.pendingData, this.pos, len);
+    this.pos += len;
+    return dataView;
   }
 
   async write(data: ArrayBuffer): Promise<void> {
     this.receivedData.push(new DataView(data));
     return Promise.resolve();
+  }
+
+  close(): void {
+    if (this.reject) {
+      this.reject(new Error('Transport Closed'));
+    }
   }
 }
 
@@ -47,17 +72,17 @@ describe('MessageChannel', () => {
     keySize: 2048,
   } as Options;
 
-  let messageListener: MessageListener;
+  let messageListener: MockMessageListener;
   let transport: MockTransport;
   let messageChannel: MessageChannel;
 
-  beforeEach(() => {
-    messageListener = new MockMessageListener();
-    transport = new MockTransport();
-    messageChannel = new MessageChannel(transport, options, messageListener);
-  });
-
   describe('#write', () => {
+    beforeEach(() => {
+      messageListener = new MockMessageListener();
+      transport = new MockTransport();
+      messageChannel = new MessageChannel(transport, options, messageListener);
+    });
+
     it('writes a message with without data', async () => {
       const message = Message.newMessage('CNXN', 1, 2, true);
       await messageChannel.write(message);
@@ -74,6 +99,26 @@ describe('MessageChannel', () => {
       expect(transport.receivedData.length).toBe(2);
       expect(MessageHeader.parse(transport.receivedData[0])).toEqual(message.header);
       expect(transport.receivedData[1].byteLength).toBe(4);
+    });
+  });
+
+  describe('#readLoop', () => {
+    beforeEach(() => {
+      messageListener = new MockMessageListener();
+      transport = new MockTransport();
+    });
+
+    it('Reads a Message', () => {
+      const msg = Message.newMessage('MOCK', 0, 0, true);
+      transport.pushData(msg.header.toDataView().buffer);
+      messageChannel = new MessageChannel(transport, options, messageListener);
+
+      // We call setTimeout to yield the thread and allow the eventLoop to add the Message to
+      // our thread.
+      setTimeout(() => {
+        expect(messageListener.receivedMessages.length).toBe(1);
+        messageChannel.close();
+      }, 5);
     });
   });
 });
