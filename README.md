@@ -7,7 +7,7 @@ implementation supports multiple concurrent streams.
 This is not an exhaustive implementation of the protocol and hasn't been tested on a wide range of
 devices.
 
-A non-exhaustive list of things that not implemented:
+A non-exhaustive list of things that are not implemented:
 
 - `STAT`: reads stats from the Android filesystem (file size, mode and time).
 - `SEND`: writes a file to a device. Similar to `adb push`.
