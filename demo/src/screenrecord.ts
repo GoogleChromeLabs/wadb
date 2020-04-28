@@ -21,9 +21,9 @@ let adbClient: AdbClient | null;
 
 const connectButton = document.querySelector('#connect')!;
 const disconnectButton = document.querySelector('#disconnect')!;
-const startButton = document.querySelector('#start')!;
-const stopButton = document.querySelector('#stop')!;
-const screenshotButton = document.querySelector('#screencapture')!;
+const startButton = (document.querySelector('#start') as HTMLButtonElement)!;
+const stopButton = (document.querySelector('#stop') as HTMLButtonElement)!;
+const screenshotButton = (document.querySelector('#screencapture') as HTMLButtonElement)!;
 const video: HTMLVideoElement = (document.querySelector('#video') as HTMLVideoElement)!;
 const screenshot = (document.querySelector('#screenshot') as HTMLImageElement)!;
 const download = (document.querySelector('#download') as HTMLAnchorElement)!;
@@ -62,6 +62,9 @@ connectButton.addEventListener('click', async (_) => {
 
     connectButton.classList.toggle('hidden');
     disconnectButton.classList.toggle('hidden');
+    startButton.removeAttribute('disabled');
+    screenshotButton.removeAttribute('disabled');
+    stopButton.removeAttribute('disabled');        
   } catch(e) {
     console.error('Connection Failed: ', e);
     status.textContent = 'Failed to connect to a device';
@@ -84,6 +87,9 @@ disconnectButton.addEventListener('click', async (_) => {
     }
     connectButton.classList.toggle('hidden');
     disconnectButton.classList.toggle('hidden');
+    startButton.disabled = true;
+    stopButton.disabled = true;
+    screenshotButton.disabled = true;    
     status.textContent = 'Connect to a device to start';
   } catch(e) {
     console.error('Disconnecting Failed: ', e);

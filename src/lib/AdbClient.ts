@@ -22,7 +22,8 @@ import {privateKeyDump} from './Helpers';
 import {AdbConnectionInformation} from './AdbConnectionInformation';
 import {Stream} from './Stream';
 import {Shell} from './Shell';
-import { AsyncBlockingQueue } from './Queues';
+import {AsyncBlockingQueue} from './Queues';
+import {Framebuffer} from './Framebuffer';
 
 const VERSION = 0x01000000;
 const VERSION_NO_CHECKSUM = 0x01000001;
@@ -113,6 +114,10 @@ export class AdbClient implements MessageListener {
     await stream.close();
     return response.dataAsString() || '';
   }
+
+  async framebuffer(): Promise<Framebuffer> {
+    return Framebuffer.create(this, this.options);
+  } 
 
   async interactiveShell(callback?: (result: string) => void): Promise<Shell> {
     const stream = await Stream.open(this, 'shell:', this.options);

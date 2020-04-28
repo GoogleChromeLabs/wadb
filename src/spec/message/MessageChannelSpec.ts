@@ -83,7 +83,7 @@ describe('MessageChannel', () => {
     });
 
     it('Receives Messages in the right order', async () => {
-      transport.pushData(messageWithoutData.header.toDataView());      
+      transport.pushData(messageWithoutData.header.toDataView());
       transport.pushData(messageWithData.header.toDataView());
       transport.pushData(messageWithData.data!);
       messageChannel = new MessageChannel(transport, options, messageListener);
@@ -91,6 +91,6 @@ describe('MessageChannel', () => {
       const receivedMessage2 = await messageListener.messageQueue.dequeue();
       expect(receivedMessage1).toEqual(messageWithoutData);
       expect(receivedMessage2).toEqual(messageWithData);
-    });    
+    });
   });
 });

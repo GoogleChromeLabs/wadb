@@ -24,6 +24,7 @@ const disconnectButton = document.querySelector('#disconnect')!;
 const startButton = document.querySelector('#start')!;
 const stopButton = document.querySelector('#stop')!;
 const video: HTMLVideoElement = (document.querySelector('#video') as HTMLVideoElement)!;
+const download = (document.querySelector('#download') as HTMLAnchorElement)!;
 const status = document.querySelector('#status')!;
 
 const options: Options = {
@@ -96,25 +97,32 @@ startButton.addEventListener('click', async() => {
   status.textContent = 'Recording...';
   stopButton.classList.toggle('hidden');
   startButton.classList.toggle('hidden');
-  video.classList.toggle('hidden')
 
+  const textDecoder = new TextDecoder();
   // mediaSource.addEventListener('sourceopen', async () => {
-    shell = await Stream.open(adbClient!, 'shell:screenrecord --output-format=h264 -', options);    
+    shell = await Stream.open(adbClient!, 'exec:screenrecord --output-format=h264 -', options);
     // const audioSourceBuffer = mediaSource.addSourceBuffer('video/mp4; codecs="mp4a.40.2"');
-    const chunks: ArrayBuffer[] = [];
+    const chunks: Uint8Array[] = [];
     let i = 0;
-    const textDecoder = new TextDecoder();
-    while (i < 1000) {
+
+    let msg;
+    while (true) {
       console.log(++i);
+      msg = await shell!.read();
       await shell!.write('OKAY');
-      const msg = await shell!.read();
-      console.log(textDecoder.decode(msg.data!));
-      chunks.push(msg.data!.buffer);
+      if (msg.header.cmd === 'CLSE') {
+        break;
+      }
+      console.log(textDecoder.decode(msg.data!.buffer));
+      chunks.push(new Uint8Array(msg.data!.buffer));
     }
-    video.src = URL.createObjectURL(new Blob(chunks));
+    console.log(chunks.length);
+    const objectUrl = URL.createObjectURL(new Blob(chunks));
+    video.src = objectUrl;
+    download.href = objectUrl;
   // });
 });
 
 stopButton.addEventListener('click', async() => {
-  
+  await shell?.write('CLSE');
 });
