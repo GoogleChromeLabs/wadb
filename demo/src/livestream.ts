@@ -100,7 +100,7 @@ startButton.addEventListener('click', async() => {
 
   const textDecoder = new TextDecoder();
   // mediaSource.addEventListener('sourceopen', async () => {
-    shell = await Stream.open(adbClient!, 'exec:screenrecord --time-limit 5 --output-format=h264', options);    
+    shell = await Stream.open(adbClient!, 'exec:screenrecord --output-format=h264 -', options);
     // const audioSourceBuffer = mediaSource.addSourceBuffer('video/mp4; codecs="mp4a.40.2"');
     const chunks: Uint8Array[] = [];
     let i = 0;
@@ -109,7 +109,7 @@ startButton.addEventListener('click', async() => {
     while (true) {
       console.log(++i);
       msg = await shell!.read();
-      await shell!.write('OKAY');      
+      await shell!.write('OKAY');
       if (msg.header.cmd === 'CLSE') {
         break;
       }
@@ -117,12 +117,12 @@ startButton.addEventListener('click', async() => {
       chunks.push(new Uint8Array(msg.data!.buffer));
     }
     console.log(chunks.length);
-    const objectUrl = URL.createObjectURL(new Blob(chunks)); 
+    const objectUrl = URL.createObjectURL(new Blob(chunks));
     video.src = objectUrl;
     download.href = objectUrl;
   // });
 });
 
 stopButton.addEventListener('click', async() => {
-  
+  await shell?.write('CLSE');
 });
