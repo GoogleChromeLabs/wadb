@@ -22,27 +22,27 @@ import {Options} from './Options';
   * framebuffer:
   *   This service is used to send snapshots of the framebuffer to a client.
   *   It requires sufficient privileges but works as follow:
-  * 
+  *
   *     After the OKAY, the service sends 16-byte binary structure
   *     containing the following fields (little-endian format):
-  * 
+  *
   *           depth:   uint32_t:    framebuffer depth
   *           size:    uint32_t:    framebuffer size in bytes
   *           width:   uint32_t:    framebuffer width in pixels
   *           height:  uint32_t:    framebuffer height in pixels
-  * 
+  *
   *     With the current implementation, depth is always 16, and
   *     size is always width*height*2
-  * 
+  *
   *     Then, each time the client wants a snapshot, it should send
   *     one byte through the channel, which will trigger the service
   *     to send it 'size' bytes of framebuffer data.
-  * 
+  *
   *     If the adbd daemon doesn't have sufficient privileges to open
   *     the framebuffer device, the connection is simply closed immediately.
-  * 
+  *
   * Definitions from `system/core/adb/daemon/framebuffer_service.cpp`
-  * 
+  *
   * struct fbinfo {
   *   unsigned int version;
   *   unsigned int bpp;

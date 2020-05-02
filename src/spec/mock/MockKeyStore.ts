@@ -21,7 +21,7 @@ export class MockKeyStore implements KeyStore {
     return Promise.resolve([]);
   }
 
-  saveKey(key: CryptoKeyPair): Promise<void> {
+  saveKey(): Promise<void> {
     return Promise.resolve();
   };
 }

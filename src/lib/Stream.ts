@@ -25,8 +25,8 @@ export class Stream {
   private static nextId = 1;
   private messageQueue = new AsyncBlockingQueue<Message>();
 
-  constructor(readonly client: AdbClient, private service: string, private localId: number,
-     private remoteId: number, private options: Options) {
+  constructor(readonly client: AdbClient, readonly service: string, readonly localId: number,
+    readonly remoteId: number, private options: Options) {
   }
 
   async close(): Promise<void> {
@@ -126,15 +126,15 @@ export class Stream {
       cmd, this.localId, this.remoteId, this.options.useChecksum, data);
   }
 
-  static async open(device: AdbClient, service: string, options: Options): Promise<Stream> {
+  static async open(adbClient: AdbClient, service: string, options: Options): Promise<Stream> {
     const localId = Stream.nextId++;
     let remoteId = 0;
     const m = Message.open(localId, remoteId, service, options.useChecksum);
-    await device.sendMessage(m);
+    await adbClient.sendMessage(m);
 
     let response;
     do {
-      response = await device.awaitMessage();
+      response = await adbClient.awaitMessage();
     } while (response.header.arg1 !== localId);
 
     if (response.header.cmd !== 'OKAY') {
@@ -148,8 +148,8 @@ export class Stream {
       console.log(` remote_id: 0x${toHex32(remoteId)}`);
     }
 
-    const stream = new Stream(device, service, localId, remoteId, options);
-    device.registerStream(stream);
+    const stream = new Stream(adbClient, service, localId, remoteId, options);
+    adbClient.registerStream(stream);
     return stream;
   }
 }

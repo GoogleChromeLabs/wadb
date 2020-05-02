@@ -46,7 +46,7 @@ describe('AdbClient', () => {
     beforeEach(() => {
       transport = new MockTransport();
     });
-    
+
     it('Server doesn\'t request AUTH and responds with CNXN', async () => {
       await transport.pushFromFile('src/spec/data/messages/connect/connect_simple.json');
       const adbClient = new AdbClient(transport, options, keyStore);

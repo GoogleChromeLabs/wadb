@@ -33,7 +33,7 @@ export class MockTransport implements Transport {
       const arg1 = jsonMessage.arg1;
       const data = jsonMessage.data ?
           new DataView(textEncoder.encode(jsonMessage.data).buffer) : jsonMessage.data;
-      const useChecksum = !!data.useChecksum;    
+      const useChecksum = !!jsonMessage.useChecksum;
       this.pushMessage(Message.newMessage(cmd, arg0, arg1, useChecksum, data));
     }
   }

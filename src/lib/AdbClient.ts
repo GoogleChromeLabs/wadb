@@ -30,7 +30,6 @@ const VERSION_NO_CHECKSUM = 0x01000001;
 const MAX_PAYLOAD = 256 * 1024;
 
 const MACHINE_BANNER = 'host::\0';
-type MessageCallback = (msg: Message) => void;
 
 export class AdbClient implements MessageListener {
   private messageChannel: MessageChannel;
@@ -51,12 +50,10 @@ export class AdbClient implements MessageListener {
 
   registerStream(stream: Stream): void {
     this.openStreams.add(stream);
-    console.log(this.openStreams);
   }
 
   unregisterStream(stream: Stream): void {
     this.openStreams.delete(stream);
-    console.log(this.openStreams);
   }
 
   newMessage(msg: Message): void {
@@ -115,7 +112,7 @@ export class AdbClient implements MessageListener {
 
   async framebuffer(): Promise<Framebuffer> {
     return Framebuffer.create(this, this.options);
-  } 
+  }
 
   async interactiveShell(callback?: (result: string) => void): Promise<Shell> {
     const stream = await Stream.open(this, 'shell:', this.options);
