@@ -77,7 +77,6 @@ export class AdbClient implements MessageListener {
   async connect(): Promise<AdbConnectionInformation> {
     const version = this.options.useChecksum ? VERSION : VERSION_NO_CHECKSUM;
     const cnxn = Message.cnxn(version, MAX_PAYLOAD, MACHINE_BANNER, this.options.useChecksum);
-    console.log('sendMessage');
     await this.sendMessage(cnxn); // Send the Message
 
     // Response to connect must be CNXN or AUTH. Ignore different responses until the right one
@@ -85,7 +84,6 @@ export class AdbClient implements MessageListener {
     let response;
     do {
       response = await this.awaitMessage();
-      console.log(response);
     } while (response.header.cmd !== 'CNXN' && response.header.cmd !== 'AUTH');
 
     // Server connected
@@ -172,7 +170,9 @@ export class AdbClient implements MessageListener {
     const keyMessage = Message.authPublicKey(exportedKey, this.options.useChecksum);
     await this.sendMessage(keyMessage);
 
-    console.log('Accept Key on Device');
+    if (this.options.debug) {
+      console.log('Waiting for key to be accepted on the device.');
+    }
     const keyResponse = await this.awaitMessage()
     if (keyResponse.header.cmd !== 'CNXN') {
       console.error('AUTH failed. Phone didn\'t accept key', keyResponse);

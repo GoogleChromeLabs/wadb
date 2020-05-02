@@ -18,18 +18,29 @@ import {AdbClient} from '../lib/AdbClient';
 import {MockTransport} from './mock/MockTransport';
 import {MockKeyStore} from './mock/MockKeyStore';
 import {Options} from '../lib/Options';
-import {Message} from '../lib/message';
+import {Crypto} from 'node-webcrypto-ossl';
+
+const crypto = new Crypto({
+  directory: 'key_storage'
+})
 
 describe('AdbClient', () => {
   const keyStore = new MockKeyStore();
   const options = {
-    debug: true,
+    debug: false,
     dump: false,
     useChecksum: false,
     keySize: 2048,
   } as Options;
 
   describe('#connect', () => {
+    // Node doesn't have a global btoa function. We patch it here for the test.
+    globalThis.btoa = (input: string): string => {
+      return Buffer.from(input).toString('base64');
+    };
+    // Polyfills the browser crypto
+    globalThis.crypto = crypto;
+
     let transport: MockTransport;
 
     beforeEach(() => {
@@ -37,12 +48,16 @@ describe('AdbClient', () => {
     });
     
     it('Server doesn\'t request AUTH and responds with CNXN', async () => {
-      const cnxnResponse = Message.cnxn(1, 64 * 1024, 'host::', false);
-      transport.pushData(cnxnResponse.header.toDataView());
-      transport.pushData(cnxnResponse.data!);
+      await transport.pushFromFile('src/spec/data/messages/connect/connect_simple.json');
       const adbClient = new AdbClient(transport, options, keyStore);
       const adbDeviceInfo = await adbClient.connect();
-      console.log(adbDeviceInfo);
+      expect(adbDeviceInfo).toBeDefined();
+    });
+
+    it('Server responds with AUTH and then CNXN', async () => {
+      await transport.pushFromFile('src/spec/data/messages/connect/connect_auth_public_key.json');
+      const adbClient = new AdbClient(transport, options, keyStore);
+      const adbDeviceInfo = await adbClient.connect();
       expect(adbDeviceInfo).toBeDefined();
     });
   });

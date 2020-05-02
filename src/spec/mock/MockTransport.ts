@@ -15,6 +15,8 @@
  */
 
 import {Transport} from '../../lib/transport';
+import {Message} from '../../lib/message';
+import * as fs from 'fs';
 
 export class MockTransport implements Transport {
   receivedData: DataView[] = [];
@@ -22,12 +24,33 @@ export class MockTransport implements Transport {
   pos = 0;
   reject?: (reason: Error) => void;
 
+  async pushFromFile(fileName: string): Promise<void> {
+    const textEncoder = new TextEncoder();
+    const messages = JSON.parse(await fs.promises.readFile(fileName, {encoding: "utf-8"}));
+    for (const jsonMessage of messages) {
+      const cmd = jsonMessage.cmd;
+      const arg0 = jsonMessage.arg0;
+      const arg1 = jsonMessage.arg1;
+      const data = jsonMessage.data ?
+          new DataView(textEncoder.encode(jsonMessage.data).buffer) : jsonMessage.data;
+      const useChecksum = !!data.useChecksum;    
+      this.pushMessage(Message.newMessage(cmd, arg0, arg1, useChecksum, data));
+    }
+  }
+
   pushData(data: DataView): void {
     const buffer = data.buffer;
     const tmp = new Uint8Array(this.pendingData.byteLength + buffer.byteLength);
     tmp.set(new Uint8Array(this.pendingData), 0);
     tmp.set(new Uint8Array(buffer), this.pendingData.byteLength);
     this.pendingData = tmp.buffer;
+  }
+
+  pushMessage(msg: Message): void {
+    this.pushData(msg.header.toDataView());
+    if (msg.data) {
+      this.pushData(msg.data);
+    }
   }
 
   async read(len: number): Promise<DataView> {
