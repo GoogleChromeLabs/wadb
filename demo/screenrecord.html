@@ -17,50 +17,70 @@
   <head>
     <meta name="viewport" content="initial-scale=1, maximum-scale=1">
     <meta charset="utf-8">
-    <title>Web Screenrecord</title>
+    <title>WebADB Screenrecord</title>
     <script src="dist/screenrecord.bundle.js" defer></script>
     <style>
       html {
         font-family: 'Roboto', sans-serif;
         background-color: lightsteelblue;
         box-sizing: border-box;
+        min-width: 320px;
       }
 
       body {
         margin: 0;
       }
 
-      h1 {
-        height: 56px;
-        margin: 0;
-        padding: 8px 16px;
-        background-color: #789ac7;
+      header, .status {
         box-sizing: border-box;
         box-shadow: 0px 2px 4px #999999;
+      }
+
+      header > h1, .status > div, content > div {
+        margin: 0px auto;
+        max-width: 900px;
+        padding: 0px 16px;
+        box-sizing: border-box;
+      }
+
+      header {
+        background-color: #789ac7;
+      }}
+      
+      header > h1 {
+        height: 56px;
+        padding: 8px 16px;
+      }
+
+      .status {
+        height: 28px;
+        background-color: steelblue;
+        font-size: 12px;
+        padding-top: 6px;
+        text-transform: uppercase;
+        margin-bottom: 16px;
       }
 
       h2 {
         margin: 16px 0 8px 0;
       }
 
-      video {
-        background-color: darkgrey;
-        max-width: 100%;
-        max-height: 60vh;
-        display: block;
+      .video-container > div {
+        background-color: #222222;
+        width: 100%;
+        margin: 0px auto;        
       }
+
+      video, #screenshot {
+        width: 100%;
+        max-width: 100%;
+        max-height: 100%;
+      } 
       
       .video-container {
         margin-top: 16px;
+        margin-bottom: 16px;
         width: 100%;
-      }
-
-      .content-wrapper {
-        padding: 0 16px;
-      }
-
-      .buttons {
-        height: 30px;
       }
 
       .button {
@@ -116,51 +136,35 @@
         width: 14px;
       } */
 
-      #screenshot {
-        max-width: 100%;
-        max-height: 60vh;
-      }
-
       .hidden {
         display: none;
-      }
-
-      .status {
-        height: 28px;
-        background-color: steelblue;
-        font-size: 12px;
-        box-sizing: border-box;
-        padding-top: 6px;
-        text-transform: uppercase;
-        margin-bottom: 16px;        
       }
     </style>
   </head>
   <body>
-    <h1>WebADB Screenrecord</h1>
-    <div id="status" class="content-wrapper status">
-      Connect to a device to start
-    </div>    
-    <div class="content-wrapper">
+    <header>
+      <h1>WebADB Screenrecord</h1>
+    </header>
+    <div class="status">
+      <div id="status">
+        Connect to a device to start
+      </div>
+    </div>            
+    <content>
       <div class="buttons">
         <button id="connect" class="button">Connect</button>
         <button id="disconnect" class="button hidden">Disconnect</button>
-      </div>
-      <div>
-        <h2>Controls</h2>
-        <div class="buttons">
-          <button id="start" class="button" disabled>Record</button>
-          <button id="stop" class="button hidden" disabled>Stop</button>
-          <button id="screencapture" class="button" disabled>Screenshot</button>
-        </div>
+        <button id="start" class="button" disabled>Record</button>
+        <button id="stop" class="button hidden" disabled>Stop</button>
+        <button id="screencapture" class="button" disabled>Screenshot</button>
       </div>
       <div class="video-container">
-        <h2>Output:</h2>
-          <video id="video" controls class="hidden"></video>
+        <div>
+          <video id="video" controls></video>
           <img id="screenshot" class="hidden"></img>
-          <br/>
-          <a id="download" class='hidden' href="#" download="recording.mp4">Download</a>          
+        </div>
+        <a id="download" class='hidden' href="#" download="recording.mp4">Download</a>          
       </div>
-  </div>
+  </content>
   </body>
 </html>
