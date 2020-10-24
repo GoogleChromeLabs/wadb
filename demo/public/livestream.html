@@ -1,0 +1,147 @@
+<!--
+ Copyright 2020 Google Inc. All Rights Reserved.
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+<!doctype html>
+<html>
+  <head>
+    <meta name="viewport" content="initial-scale=1, maximum-scale=1">
+    <meta charset="utf-8">
+    <title>Web ADB Livestream</title>    
+    <script src="js/livestream.bundle.js" defer></script>
+    <style>
+      html {
+        font-family: 'Roboto', sans-serif;
+        background-color: lightsteelblue;
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+      }
+
+      h1 {
+        height: 56px;
+        margin: 0;
+        padding: 8px 16px;
+        background-color: #789ac7;
+        box-sizing: border-box;
+        box-shadow: 0px 2px 4px #999999;
+      }
+
+      h2 {
+        margin: 16px 0 8px 0;
+      }
+
+      video {
+        background-color: darkgrey;
+        max-width: 100%;
+        max-height: 60vh;
+        display: block;
+      }
+      
+      .video-container {
+        margin-top: 16px;
+        width: 100%;
+      }
+
+      .content-wrapper {
+        padding: 0 16px;
+      }
+
+      .buttons {
+        height: 30px;
+      }
+
+      .button {
+        width: 145px;
+        height: 30px;
+        text-transform: uppercase;
+        padding-left: 20px;
+      }
+
+      #connect {
+        background-image: url(./assets/phonelink.svg);
+        background-repeat: no-repeat;
+        background-position-x: 4px;
+        background-position-y: 2px;   
+      }
+
+      #disconnect {
+        background-image: url(./assets/phonelink_off.svg);
+        background-repeat: no-repeat;
+        background-position-x: 4px;
+        background-position-y: 2px;
+      }
+
+      #start {
+        background-image: url(./assets/video-start.svg);
+        background-repeat: no-repeat;
+        background-position-x: 4px;
+        background-position-y: 0px;
+      }
+
+      #stop {
+        background-image: url(./assets/video-stop.svg);
+        background-repeat: no-repeat;
+        background-position-x: 4px;
+        background-position-y: 0px;
+      }
+
+      #screencapture {
+        background-image: url(./assets/screenshot.svg);
+        background-repeat: no-repeat;
+        background-position-x: 4px;
+        background-position-y: 0px;        
+      }
+
+      .hidden {
+        display: none;
+      }
+
+      .status {
+        height: 28px;
+        background-color: steelblue;
+        font-size: 12px;
+        box-sizing: border-box;
+        padding-top: 6px;
+        text-transform: uppercase;
+        margin-bottom: 16px;        
+      }
+    </style>
+  </head>
+  <body>
+    <h1>WebADB Screenrecord</h1>
+    <div id="status" class="content-wrapper status">
+      Connect to a device to start
+    </div>    
+    <div class="content-wrapper">
+      <div class="buttons">
+        <button id="connect" class="button">Connect</button>
+        <button id="disconnect" class="button hidden">Disconnect</button>
+      </div>
+      <div>
+        <h2>Controls</h2>
+        <div class="buttons">
+          <button id="start" class="button">Record</button>
+          <button id="stop" class="button hidden">Stop</button>
+        </div>
+      </div>
+      <div class="video-container">
+        <h2>Output:</h2>
+        <video id="video" controls></video>
+        <a id="download" href="#" download="recording.mp4">Download</a>          
+      </div>
+  </div>
+  </body>
+</html>
