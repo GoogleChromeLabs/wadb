@@ -8,7 +8,7 @@
     "lint": "tslint \"src/**/*.ts\"",
     "lint-fix": "tslint \"src/**/*.ts\" --fix",
     "build": "tsc",
-    "package": "webpack",
+    "package": "webpack && workbox generateSW",
     "serve": "serve"
   },
   "author": "André Cipriani Bandarra",
@@ -19,7 +19,8 @@
     "tslint": "^6.0.0",
     "typescript": "^3.8.3",
     "webpack": "^4.42.1",
-    "webpack-cli": "^3.3.11"
+    "webpack-cli": "^3.3.11",
+    "workbox-cli": "^5.1.4"
   },
   "dependencies": {
     "wadb": "file:../"
