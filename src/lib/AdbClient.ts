@@ -130,6 +130,21 @@ export class AdbClient implements MessageListener {
     return result;
   }
 
+  /**
+   * Pushes a blob of data to the device at the specified remote path.
+   *
+   * @param {Blob} blob The data to push.
+   * @param {string} remotePath The path on the device to write the data to.
+   * @param {string} mode The mode to set on the file (e.g., "0755").
+   * @param {number} chunkSize The size of data chunks to send at a time.
+   */
+  async push(blob: Blob, remotePath: string, mode: string, chunkSize: number):
+      Promise<void> {
+    const syncStream = await this.sync();
+    await syncStream.push(blob, remotePath, mode, chunkSize);
+    await syncStream.close();
+  }
+
   private async doAuth(authResponse: Message): Promise<Message> {
     if (authResponse.header.cmd !== 'AUTH') {
       throw new Error('Not an AUTH response');

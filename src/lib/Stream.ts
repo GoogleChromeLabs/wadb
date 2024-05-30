@@ -26,23 +26,23 @@ export class Stream {
   private messageQueue = new AsyncBlockingQueue<Message>();
 
   constructor(readonly client: AdbClient, readonly service: string, readonly localId: number,
-    readonly remoteId: number, private options: Options) {
+              readonly remoteId: number, private options: Options) {
   }
 
   async close(): Promise<void> {
     await this.write('CLSE');
 
-		if (this.options.debug) {
-			console.log(`Closed stream ${this.service}`);
-			console.log(` local_id: 0x${toHex32(this.localId)}`);
-			console.log(` remote_id: 0x${toHex32(this.remoteId)}`);
+    if (this.options.debug) {
+      console.log(`Closed stream ${this.service}`);
+      console.log(` local_id: 0x${toHex32(this.localId)}`);
+      console.log(` remote_id: 0x${toHex32(this.remoteId)}`);
     }
     this.client.unregisterStream(this);
   }
 
   consumeMessage(msg: Message): boolean {
     if (msg.header.arg0 === 0 || msg.header.arg0 !== this.remoteId ||
-        msg.header.arg1 === 0 || msg.header.arg1 !== this.localId) {
+      msg.header.arg1 === 0 || msg.header.arg1 !== this.localId) {
       return false;
     }
     this.messageQueue.enqueue(msg);
@@ -57,6 +57,22 @@ export class Stream {
   async read(): Promise<Message> {
     return this.messageQueue.dequeue();
   }
+
+  /**
+   * Sends a message and waits for a specific response message.
+   *
+   * @param {Message} m The message to send.
+   * @param {string} responseCmd The expected command of the response message.
+   * @throws {Error} If the response message has a different command.
+   */
+  async sendReceive(m: Message, responseCmd: string): Promise<void> {
+    await this.client.sendMessage(m);
+    const response = await this.read();
+    if (response.header.cmd !== responseCmd) {
+      throw new Error('WRTE/SEND failed: ' + response);
+    }
+  }
+
 
   /**
    *
@@ -120,6 +136,81 @@ export class Stream {
     }
     return new Blob(chunks);
   }
+
+
+  /**
+   * Pushes a blob of data to the device at the specified remote path.
+   *
+   * @param {Blob} blob The data to push.
+   * @param {string} remotePath The path on the device to write the data to.
+   * @param {string} mode The mode to set on the file.
+   * @param {number} chunkSize The size of data chunks to send at a time.
+   */
+  async push(blob: Blob, remotePath: string, mode: string, chunkSize: number):
+    Promise<void> {
+    const reader = new FileReader();
+    const encoder = new TextEncoder();
+
+    // Encodes the remote path for sending over ADB.
+    const encodedFilename = encoder.encode(remotePath);
+
+    // --- Negotiation Phase ---
+    // 1. Sends SEND command with total filename+mode length.
+    const sendFrame =
+      new SyncFrame('SEND', remotePath.length + 1 + mode.length);
+    const wrteSendMessage = this.newMessage('WRTE', sendFrame.toDataView());
+    await this.sendReceive(wrteSendMessage, 'OKAY');
+
+    // 2. Sends the filename.
+    const wrteFilenameMessage =
+      this.newMessage('WRTE', new DataView(encodedFilename.buffer));
+    await this.sendReceive(wrteFilenameMessage, 'OKAY');
+
+    // 3. Sends the mode.
+    const wrteModeMessage = this.newMessage(
+      'WRTE', new DataView(encoder.encode(',' + mode).buffer));
+    await this.sendReceive(wrteModeMessage, 'OKAY');
+
+    // --- Data Transfer Phase ---
+    // 1. Reads the Blob as an ArrayBuffer.
+    const arrayBufferPromise = new Promise<ArrayBuffer>((resolve, reject) => {
+      reader.onload = (event) => {
+        return resolve(event.target!.result as ArrayBuffer);
+      };
+      reader.onerror = reject;
+      reader.readAsArrayBuffer(blob);
+    });
+    const buffer: ArrayBuffer = await arrayBufferPromise;
+
+    // 2. Splits the buffer into chunks.
+    const chunks: ArrayBufferLike[] = [];
+    for (let i = 0; i < buffer.byteLength; i += chunkSize) {
+      chunks.push(buffer.slice(i, Math.min(i + chunkSize, buffer.byteLength)));
+    }
+
+    // 3. Sends each chunk with its size.
+    for (const chunk of chunks) {
+      const syncFrame = new SyncFrame('DATA', chunk.byteLength);
+      const wrteByteLengthMessage =
+        this.newMessage('WRTE', syncFrame.toDataView());
+      await this.sendReceive(wrteByteLengthMessage, 'OKAY');
+
+      const dataView = new DataView(chunk);
+      const wrteChunkMessage = this.newMessage('WRTE', dataView);
+      await this.sendReceive(wrteChunkMessage, 'OKAY');
+    }
+
+    // --- Finishing Up ---
+    // 1. Sends DONE frame with current timestamp.
+    const doneFrame = new SyncFrame('DONE', Math.round(Date.now() / 1000));
+    const doneMessage = this.newMessage('WRTE', doneFrame.toDataView());
+    await this.client.sendMessage(doneMessage);
+
+    // 2. Reads response (should be OKAY) and send final OKAY.
+    const okayMessage = this.newMessage('OKAY');
+    await this.sendReceive(okayMessage, 'OKAY');
+  }
+
 
   private newMessage(cmd: string, data?: DataView): Message {
     return Message.newMessage(
