@@ -8,7 +8,8 @@
     "lint": "eslint \"src/**/*.ts\"",
     "lint-fix": "eslint \"src/**/*.ts\" --fix",
     "build": "tsc -p .",
-    "test": "tsc -p . && jasmine --config=jasmine.json"
+    "test": "tsc -p . && jasmine --config=jasmine.json",
+    "postinstall": "tsc -p ."
   },
   "files": [
     "dist/lib",
@@ -17,7 +18,7 @@
   ],
   "author": "André Cipriani Bandarra",
   "license": "Apache-2.0",
-  "devDependencies": {
+  "dependencies": {
     "@types/jasmine": "^3.5.10",
     "@types/node": "^13.13.2",
     "@types/w3c-web-usb": "^1.0.4",
