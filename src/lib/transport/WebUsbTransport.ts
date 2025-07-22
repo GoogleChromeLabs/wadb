@@ -109,7 +109,21 @@ export class WebUsbTransport implements Transport {
    * @param options
    */
   static async open(options: Options): Promise<WebUsbTransport> {
-    const device = await navigator.usb.requestDevice({filters: DEVICE_FILTERS});
+    const device = await navigator.usb.requestDevice({
+      filters: DEVICE_FILTERS,
+    });
+
+    return await this.openDevice(device, options);
+  }
+
+  /**
+   * Opens a connection to an already paired WebUSB device
+   *
+   * @param device
+   * @param options
+   * @returns
+   */
+  static async openDevice(device: USBDevice, options: Options): Promise<WebUsbTransport> {
     await device.open();
 
     // Find the WebUSB device
