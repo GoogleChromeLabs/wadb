@@ -16,7 +16,7 @@
 
  export * from './lib/AdbClient';
  export * from './lib/AdbConnectionInformation';
- export * from './lib/KeyStore'
+ export * from './lib/KeyStore';
  export * from './lib/Options';
  export * from './lib/Shell';
  export * from './lib/Stream';

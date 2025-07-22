@@ -22,6 +22,7 @@ import {privateKeyDump} from './Helpers';
 import {AdbConnectionInformation} from './AdbConnectionInformation';
 import {Stream} from './Stream';
 import {Shell} from './Shell';
+import {ShellV2} from './ShellV2';
 import {AsyncBlockingQueue} from './Queues';
 import {Framebuffer} from './Framebuffer';
 
@@ -119,16 +120,24 @@ export class AdbClient implements MessageListener {
     return new Shell(stream, callback);
   }
 
+  async shellV2(command: string): Promise<ShellV2> {
+    const stream = await Stream.open(this, `shell,v2,raw:${command}`, this.options);
+    return new ShellV2(stream);
+  }
+
   async sync(): Promise<Stream> {
     return await Stream.open(this, 'sync:', this.options);
   }
 
-  async pull(filename: string): Promise<Blob> {
-    const syncStream = await this.sync();
-    const result = await syncStream.pull(filename);
-    await syncStream.close();
-    return result;
-  }
+	async pull(filename: string): Promise<Blob> {
+		const syncStream = await this.sync();
+		return await syncStream.pull(filename);
+	}
+
+	async pullAsStream(filename: string): Promise<ReadableStream<Uint8Array>> {
+		const syncStream = await this.sync();
+		return await syncStream.pullAsStream(filename);
+	}
 
   /**
    * Pushes a blob of data to the device at the specified remote path.
@@ -144,6 +153,33 @@ export class AdbClient implements MessageListener {
     await syncStream.push(blob, remotePath, mode, chunkSize);
     await syncStream.close();
   }
+
+  /**
+   * Start a backup on the device.
+   *
+   * @param {string} args The arguments to be passed to the backup service (e.g. "-all")
+   * @returns {Promise<ReadableStream>} The backup archive can be read from the returned stream
+   */
+  async backup(args: string): Promise<ReadableStream> {
+		const stream = await Stream.open(this, `backup:${args}`, this.options);
+		return new ReadableStream({
+			async start(controller): Promise<void> {
+				while (true) {
+					const cmd = await stream.read();
+					if (cmd.header.cmd == 'CLSE') {
+						break
+					} else if (cmd.header.cmd == 'WRTE') {
+						if (cmd?.data?.buffer) {
+							controller.enqueue(new Uint8Array(cmd.data.buffer));
+						}
+						await stream.write('OKAY');
+					}
+				}
+				await stream.close();
+				controller.close()
+			}
+		})
+	}
 
   private async doAuth(authResponse: Message): Promise<Message> {
     if (authResponse.header.cmd !== 'AUTH') {
