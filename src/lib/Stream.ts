@@ -174,7 +174,7 @@ export class Stream {
     // --- Data Transfer Phase ---
     // 1. Reads the Blob as an ArrayBuffer.
     const arrayBufferPromise = new Promise<ArrayBuffer>((resolve, reject) => {
-      reader.onload = (event) => {
+      reader.onload = (event): void => {
         return resolve(event.target!.result as ArrayBuffer);
       };
       reader.onerror = reject;
