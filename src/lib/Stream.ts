@@ -80,63 +80,121 @@ export class Stream {
    * the file that will be returned. Just as for the SEND sync request the file
    * received is split up into chunks. The sync response id is "DATA" and length is
    * the chunk size. After follows chunk size number of bytes. This is repeated
-   * until the file is transferred. Each chunk will not be larger than 64k.
-   * When the file is transferred a sync response "DONE" is retrieved where the
-   * length can be ignored.
+   * until the file is transferred. When the file is transferred a sync response
+   * "DONE" is retrieved where the length can be ignored.
    *
    * @param {string} remotePath path to the file to be pulled from the device
    * @returns {Promise<Blob>} a Blog with the file contents.
    */
-  async pull(remotePath: string): Promise<Blob> {
-    const encoder = new TextEncoder();
-    const encodedFilename = encoder.encode(remotePath);
+	async pull(remotePath: string): Promise<Blob> {
+		const stream = await this.pullAsStream(remotePath);
+		return new Response(stream).blob();
+	}
 
-    // Sends RECV with filename length.
-    const recvFrame = new SyncFrame('RECV', encodedFilename.byteLength);
-    const wrteRecvMessage = this.newMessage('WRTE', recvFrame.toDataView());
-    await this.client.sendMessage(wrteRecvMessage);
-    const wrteRecvResponse = await this.read();
-    if (wrteRecvResponse.header.cmd !== 'OKAY') {
-      throw new Error('WRTE/RECV failed: ' + wrteRecvResponse);
-    }
+  private async initiatePull(remotePath: string): Promise<void> {
+		const encoder = new TextEncoder();
+		const encodedFilename = encoder.encode(remotePath);
 
-    // 17. We send the path of the file we want again sdcard/someFile.txt
-    const wrteFilenameMessage = this.newMessage('WRTE', new DataView(encodedFilename.buffer));
-    await this.client.sendMessage(wrteFilenameMessage);
+		// Sends RECV with filename length.
+		const recvFrame = new SyncFrame('RECV', encodedFilename.byteLength);
+		const wrteRecvMessage = this.newMessage('WRTE', recvFrame.toDataView());
+		await this.client.sendMessage(wrteRecvMessage);
+		const wrteRecvResponse = await this.read();
+		if (wrteRecvResponse.header.cmd !== 'OKAY') {
+			throw new Error('WRTE/RECV failed: ' + wrteRecvResponse);
+		}
 
-    // 18. Device sends us OKAY
-    const wrteFilenameResponse = await this.read();
-    if (wrteFilenameResponse.header.cmd !== 'OKAY') {
-      throw new Error('WRTE/filename failed: ' + wrteFilenameResponse);
-    }
+		// We send the path of the file we want again sdcard/someFile.txt
+		const wrteFilenameMessage = this.newMessage('WRTE', new DataView(encodedFilename.buffer));
+		await this.client.sendMessage(wrteFilenameMessage);
 
-    const okayMessage = this.newMessage('OKAY');
-    let fileDataMessage = await this.read();
-    await this.client.sendMessage(okayMessage);
+		// Device sends us OKAY
+		const wrteFilenameResponse = await this.read();
+		if (wrteFilenameResponse.header.cmd !== 'OKAY') {
+			throw new Error('WRTE/filename failed: ' + wrteFilenameResponse);
+		}
+	}
 
-    let syncFrame = SyncFrame.fromDataView(new DataView(fileDataMessage.data!.buffer.slice(0, 8)));
-    let buffer = new Uint8Array(fileDataMessage.data!.buffer.slice(8));
-    const chunks: ArrayBuffer[] = [];
-    while (syncFrame.cmd !== 'DONE') {
-      while (syncFrame.byteLength >= buffer.byteLength) {
-        fileDataMessage = await this.read();
-        await this.client.sendMessage(okayMessage);
+  async readNBytes(buffer: Uint8Array, n: number): Promise<[Uint8Array, Uint8Array]> {
+    const output = new Uint8Array(n); // create output array of desired size
+    let bytesRead = 0;
 
-        // Join both arrays
-        const newLength = buffer.byteLength + fileDataMessage.data!.byteLength;
-        const newBuffer = new Uint8Array(newLength);
-        newBuffer.set(buffer, 0);
-        newBuffer.set(new Uint8Array(fileDataMessage.data!.buffer), buffer.byteLength);
-        buffer = newBuffer;
+    // use data from buffer
+    const inBuf = Math.min(buffer.length, n);
+    output.set(buffer.slice(0, inBuf));
+    bytesRead += inBuf;
+    buffer = buffer.slice(inBuf);
+
+    // read new data from device until `n` bytes are reached
+    while (bytesRead < n) {
+      const fileDataMessage = await this.read();
+      await this.client.sendMessage(this.newMessage('OKAY'));
+
+      const toBeReadFromMessage = Math.min(fileDataMessage.data!.byteLength, n - bytesRead);
+      output.set(new Uint8Array(fileDataMessage.data!.buffer.slice(0, toBeReadFromMessage)), bytesRead);
+      bytesRead += toBeReadFromMessage;
+
+      if (toBeReadFromMessage < fileDataMessage.data!.byteLength) {
+        buffer = new Uint8Array(fileDataMessage.data!.buffer.slice(toBeReadFromMessage));
       }
-      chunks.push(buffer.slice(0, syncFrame.byteLength).buffer);
-      buffer = buffer.slice(syncFrame.byteLength);
-      syncFrame = SyncFrame.fromDataView(new DataView(buffer.slice(0, 8).buffer));
-      buffer = buffer.slice(8);
     }
-    return new Blob(chunks);
+    return [buffer, output];
   }
 
+  /**
+   *
+   * Retrieves a file from device to a local file. The remote path is the path to
+   * the file that will be returned.
+   *
+   * @param {string} remotePath path to the file to be pulled from the device
+   * @returns {Promise<ReadableStream<Uint8Array>>} a Promise that resolves to a ReadableStream of the file contents
+  */
+  async pullAsStream(remotePath: string): Promise<ReadableStream<Uint8Array>> {
+    await this.initiatePull(remotePath);
+
+    return new ReadableStream({
+      start: async (controller): Promise<void> => {
+        let syncFrame;
+        let fileDataMessage;
+        const okayMessage = this.newMessage('OKAY');
+        let buffer = new Uint8Array();
+        while (true) {
+          // ensure we have enough data in the buffer to read the sync message header
+          while (buffer.length < 8) {
+            fileDataMessage = await this.read();
+            await this.client.sendMessage(okayMessage);
+            const newLength = buffer.length + fileDataMessage.data!.byteLength;
+            const newBuffer = new Uint8Array(newLength);
+            newBuffer.set(buffer, 0);
+            newBuffer.set(new Uint8Array(fileDataMessage.data!.buffer), buffer.length);
+            buffer = newBuffer
+          }
+
+          // header frame
+          syncFrame = SyncFrame.fromDataView(new DataView(buffer.buffer, 0, 8));
+          buffer = buffer.slice(8);
+          if (syncFrame.cmd === 'DONE') {
+            // our work here is DONE
+            break;
+          } else if (syncFrame.cmd === 'DATA') {
+            // Normal case:
+            // Device first sends us a DATA command with the size of the current chunk
+            let chunk;
+            [buffer, chunk] = await this.readNBytes(buffer, syncFrame.byteLength);
+            controller.enqueue(chunk);
+          } else if (syncFrame.cmd === 'FAIL') {
+            let errorMessage;
+            [buffer, errorMessage] = await this.readNBytes(buffer, syncFrame.byteLength);
+            throw new Error(new TextDecoder().decode(errorMessage));
+          } else {
+            throw Error('Unknown sync command: ' + syncFrame.cmd);
+          }
+        }
+        this.close();
+        controller.close();
+      }
+    });
+  }
 
   /**
    * Pushes a blob of data to the device at the specified remote path.

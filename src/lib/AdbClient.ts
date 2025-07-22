@@ -129,12 +129,15 @@ export class AdbClient implements MessageListener {
     return await Stream.open(this, 'sync:', this.options);
   }
 
-  async pull(filename: string): Promise<Blob> {
-    const syncStream = await this.sync();
-    const result = await syncStream.pull(filename);
-    await syncStream.close();
-    return result;
-  }
+	async pull(filename: string): Promise<Blob> {
+		const syncStream = await this.sync();
+		return await syncStream.pull(filename);
+	}
+
+	async pullAsStream(filename: string): Promise<ReadableStream<Uint8Array>> {
+		const syncStream = await this.sync();
+		return await syncStream.pullAsStream(filename);
+	}
 
   /**
    * Pushes a blob of data to the device at the specified remote path.
