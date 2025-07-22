@@ -93,6 +93,17 @@ export class WebUsbTransport implements Transport {
   };
 
   /**
+   * Find connected paired adb devices
+   */
+  static async findAdbDevices(): Promise<USBDevice[]> {
+    const devices = await navigator.usb.getDevices();
+    return devices.filter(
+      (device) => this.findMatch(device, ADB_DEVICE) !== null
+    );
+  }
+
+
+  /**
    * Opens a connection to a WebUSB device
    *
    * @param options
