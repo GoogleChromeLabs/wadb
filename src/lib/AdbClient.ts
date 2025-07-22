@@ -154,6 +154,33 @@ export class AdbClient implements MessageListener {
     await syncStream.close();
   }
 
+  /**
+   * Start a backup on the device.
+   *
+   * @param {string} args The arguments to be passed to the backup service (e.g. "-all")
+   * @returns {Promise<ReadableStream>} The backup archive can be read from the returned stream
+   */
+  async backup(args: string): Promise<ReadableStream> {
+		const stream = await Stream.open(this, `backup:${args}`, this.options);
+		return new ReadableStream({
+			async start(controller): Promise<void> {
+				while (true) {
+					const cmd = await stream.read();
+					if (cmd.header.cmd == 'CLSE') {
+						break
+					} else if (cmd.header.cmd == 'WRTE') {
+						if (cmd?.data?.buffer) {
+							controller.enqueue(new Uint8Array(cmd.data.buffer));
+						}
+						await stream.write('OKAY');
+					}
+				}
+				await stream.close();
+				controller.close()
+			}
+		})
+	}
+
   private async doAuth(authResponse: Message): Promise<Message> {
     if (authResponse.header.cmd !== 'AUTH') {
       throw new Error('Not an AUTH response');
