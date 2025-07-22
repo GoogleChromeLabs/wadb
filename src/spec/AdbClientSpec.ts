@@ -18,11 +18,6 @@ import {AdbClient} from '../lib/AdbClient';
 import {MockTransport} from './mock/MockTransport';
 import {MockKeyStore} from './mock/MockKeyStore';
 import {Options} from '../lib/Options';
-import {Crypto} from 'node-webcrypto-ossl';
-
-const crypto = new Crypto({
-  directory: 'key_storage'
-})
 
 describe('AdbClient', () => {
   const keyStore = new MockKeyStore();
@@ -38,8 +33,6 @@ describe('AdbClient', () => {
     globalThis.btoa = (input: string): string => {
       return Buffer.from(input).toString('base64');
     };
-    // Polyfills the browser crypto
-    globalThis.crypto = crypto;
 
     let transport: MockTransport;
 
