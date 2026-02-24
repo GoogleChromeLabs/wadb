@@ -112,21 +112,29 @@ export class Stream {
 
     const okayMessage = this.newMessage('OKAY');
     let fileDataMessage = await this.read();
+    while (!fileDataMessage.data) {
+      fileDataMessage = await this.read();
+    }
     await this.client.sendMessage(okayMessage);
 
-    let syncFrame = SyncFrame.fromDataView(new DataView(fileDataMessage.data!.buffer.slice(0, 8)));
-    let buffer = new Uint8Array(fileDataMessage.data!.buffer.slice(8));
+    let syncFrame = SyncFrame.fromDataView(new DataView(fileDataMessage.data.buffer.slice(0, 8)));
+    let buffer = new Uint8Array(fileDataMessage.data.buffer.slice(8));
     const chunks: ArrayBuffer[] = [];
     while (syncFrame.cmd !== 'DONE') {
       while (syncFrame.byteLength >= buffer.byteLength) {
         fileDataMessage = await this.read();
+
+        if (!fileDataMessage.data) {
+          continue;
+        }
+
         await this.client.sendMessage(okayMessage);
 
         // Join both arrays
-        const newLength = buffer.byteLength + fileDataMessage.data!.byteLength;
+        const newLength = buffer.byteLength + fileDataMessage.data.byteLength;
         const newBuffer = new Uint8Array(newLength);
         newBuffer.set(buffer, 0);
-        newBuffer.set(new Uint8Array(fileDataMessage.data!.buffer), buffer.byteLength);
+        newBuffer.set(new Uint8Array(fileDataMessage.data.buffer), buffer.byteLength);
         buffer = newBuffer;
       }
       chunks.push(buffer.slice(0, syncFrame.byteLength).buffer);

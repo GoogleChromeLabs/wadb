@@ -40,5 +40,6 @@ module.exports = {
   },
   devServer: {
     static: path.resolve(__dirname, 'public'),
+    watchFiles: [path.resolve(__dirname, '../dist/**/*')],
   },
 };

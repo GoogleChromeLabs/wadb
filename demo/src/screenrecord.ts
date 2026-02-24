@@ -84,7 +84,7 @@ disconnectButton.addEventListener('click', async (_event) => {
   }
 });
 
-const RECORD_FILE_NAME = '/sdcard/webadb-record-2.mp4';
+const RECORD_FILE_NAME = '/data/local/tmp/webadb-record.mp4';
 
 let shell: Stream | null = null;
 startButton.addEventListener('click', async() => {
@@ -103,7 +103,6 @@ stopButton.addEventListener('click', async() => {
   // Waiting for a couple of seconds fixes it. Maybe send STAT before
   // attempting download.
   setTimeout(async () => {
-    console.log('Starting ADB Pull');
     const result = await adbClient!.pull(RECORD_FILE_NAME);
     const videoSrc = window.URL.createObjectURL(result);
     video!.src = videoSrc;
@@ -120,18 +119,15 @@ stopButton.addEventListener('click', async() => {
 
 screenshotButton.addEventListener('click', async() => {
   status.textContent = 'Generating Screenshot...';
-  await adbClient!.shell('screencap -p /sdcard/screenshot.png');
+  await adbClient!.shell('screencap -p /data/local/tmp/screenshot.png');
   status.textContent = 'Pulling image...';
-  setTimeout(async () => {
-    console.log('Starting ADB Pull');
-    const result = await adbClient!.pull('/sdcard/screenshot.png');
-    const imageSrc = window.URL.createObjectURL(result);
-    screenshot.src = imageSrc;
-    download.href = imageSrc;
-    download.download = 'screenshot.png';
-    download.classList.remove('hidden');
-    screenshot.classList.remove('hidden');
-    video.classList.add('hidden');
-    status.textContent = 'Done! Connected and ready';
-  }, 2000);
+  const result = await adbClient!.pull('/data/local/tmp/screenshot.png');
+  const imageSrc = window.URL.createObjectURL(result);
+  screenshot.src = imageSrc;
+  download.href = imageSrc;
+  download.download = 'screenshot.png';
+  download.classList.remove('hidden');
+  screenshot.classList.remove('hidden');
+  video.classList.add('hidden');
+  status.textContent = 'Done! Connected and ready';
 });
