@@ -98,6 +98,11 @@ export class WebUsbTransport implements Transport {
    * @param options
    */
   static async open(options: Options): Promise<WebUsbTransport> {
+    if (!navigator.usb) {
+      throw new Error(
+          'WebUSB is not available. Ensure the page is served over HTTPS or localhost, ' +
+          'and that you are using a Chromium-based browser.');
+    }
     const device = await navigator.usb.requestDevice({filters: DEVICE_FILTERS});
     await device.open();
 
