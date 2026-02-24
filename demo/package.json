@@ -6,7 +6,8 @@
   "private": true,
   "scripts": {
     "build": "tsc",
-    "package": "webpack && workbox generateSW",
+    "dev": "webpack serve --mode=development",
+    "package": "webpack --mode=production && workbox generateSW",
     "serve": "serve"
   },
   "author": "André Cipriani Bandarra",
@@ -16,7 +17,8 @@
     "ts-loader": "^9.5.4",
     "typescript": "^5.9.3",
     "webpack": "^5.105.2",
-    "webpack-cli": "^5.1.4",
+    "webpack-cli": "^6.0.1",
+    "webpack-dev-server": "^5.2.3",
     "workbox-cli": "^7.4.0"
   },
   "dependencies": {
