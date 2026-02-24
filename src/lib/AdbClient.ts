@@ -159,7 +159,7 @@ export class AdbClient implements MessageListener {
       throw new Error('AUTH message doens\'t contain data');
     }
 
-    const token = authResponse.data.buffer;
+    const token = authResponse.data.buffer as ArrayBuffer;
 
     // Try signing with one of the stored keys
     const keys = await this.keyStore.loadKeys();

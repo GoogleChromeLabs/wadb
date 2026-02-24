@@ -69,9 +69,9 @@ export class MessageChannel {
       console.log('>>>', m);
     }
     const data = m.header.toDataView();
-    await this.transport.write(data.buffer);
+    await this.transport.write(data.buffer as ArrayBuffer);
     if (m.data) {
-      await this.transport.write(m.data.buffer);
+      await this.transport.write(m.data.buffer as ArrayBuffer);
     }
   }
 }

@@ -14,7 +14,7 @@
  *  limitations under the License.
  */
 
-type Resolver<T> = (value?: T) => void;
+type Resolver<T> = (value: T | PromiseLike<T>) => void;
 
 class QueueEntry<T> {
   data: T;

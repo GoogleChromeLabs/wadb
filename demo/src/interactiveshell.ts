@@ -57,7 +57,7 @@ function sendCommand(cmd: string) {
   shell!.write(cmd + '\n');
 }
 
-connectButton.addEventListener('click', async (e) => {
+connectButton.addEventListener('click', async (_e) => {
   try {
     transport = await WebUsbTransport.open(options);
     adbClient = new AdbClient(transport, options, keyStore);
@@ -71,7 +71,7 @@ connectButton.addEventListener('click', async (e) => {
   }
 });
 
-disconnectButton.addEventListener('click', async (e) => {
+disconnectButton.addEventListener('click', async (_e) => {
   try {
     await shell?.close();
     await transport?.close();
