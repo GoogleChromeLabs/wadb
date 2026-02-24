@@ -16,7 +16,7 @@
 
 import {MessageHeader} from '../../lib/message';
 
-describe('Message', () => {
+describe('MessageHeader', () => {
   describe('#parse', () => {
     it('parses a messsage header, with checksum enabled', () => {
       const data = new DataView(new ArrayBuffer(24));
