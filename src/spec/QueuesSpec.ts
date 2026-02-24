@@ -108,7 +108,7 @@ describe('Queues', () => {
         expect(value).toBe('test');
       });
 
-      it('Dequeues correctly after enqueue', async () => {
+      it('Dequeues correctly when dequeue is called before enqueue', async () => {
         const queue = new AsyncBlockingQueue<string>();
         const promise = queue.dequeue();
         queue.enqueue('test');
