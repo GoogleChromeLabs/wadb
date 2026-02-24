@@ -14,7 +14,7 @@
   "author": "André Cipriani Bandarra",
   "license": "Apache-2.0",
   "devDependencies": {
-    "serve": "^14.2.0",
+    "serve": "^14.2.5",
     "ts-loader": "^7.0.0",
     "tslint": "^6.0.0",
     "typescript": "^3.8.3",
