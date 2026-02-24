@@ -131,7 +131,7 @@ export class Framebuffer {
         throw new Error('message doesn\'t contain data');
       }
 
-      data = new Uint8Array(message.data?.buffer!);
+      data = new Uint8Array(message.data.buffer as ArrayBuffer);
 
       buffer.set(data, bytesReceived);
       bytesReceived += data.length;

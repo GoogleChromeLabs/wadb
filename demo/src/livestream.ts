@@ -48,7 +48,7 @@ class MyKeyStore implements KeyStore {
 
 const keyStore = new MyKeyStore();
 
-connectButton.addEventListener('click', async (_) => {
+connectButton.addEventListener('click', async (_event) => {
   try {
     transport = await WebUsbTransport.open(options);
     adbClient = new AdbClient(transport, options, keyStore);
@@ -66,7 +66,7 @@ connectButton.addEventListener('click', async (_) => {
   }
 });
 
-disconnectButton.addEventListener('click', async (_) => {
+disconnectButton.addEventListener('click', async (_event) => {
   try {
     if (adbClient) {
       try {
@@ -102,7 +102,7 @@ startButton.addEventListener('click', async() => {
   // mediaSource.addEventListener('sourceopen', async () => {
     shell = await Stream.open(adbClient!, 'exec:screenrecord --output-format=h264 -', options);
     // const audioSourceBuffer = mediaSource.addSourceBuffer('video/mp4; codecs="mp4a.40.2"');
-    const chunks: Uint8Array[] = [];
+    const chunks: Uint8Array<ArrayBuffer>[] = [];
     let i = 0;
 
     let msg;
@@ -114,7 +114,7 @@ startButton.addEventListener('click', async() => {
         break;
       }
       console.log(textDecoder.decode(msg.data!.buffer));
-      chunks.push(new Uint8Array(msg.data!.buffer));
+      chunks.push(new Uint8Array(msg.data!.buffer as ArrayBuffer));
     }
     console.log(chunks.length);
     const objectUrl = URL.createObjectURL(new Blob(chunks));

@@ -109,7 +109,7 @@ export class Message {
    */
   static authPublicKey(publicKey: DataView, useChecksum: boolean): Message {
     const textEncoder = new TextEncoder();
-    const data = textEncoder.encode(toB64(publicKey.buffer) + '\0');
+    const data = textEncoder.encode(toB64(publicKey.buffer as ArrayBuffer) + '\0');
     return Message.newMessage('AUTH', 3, 0, useChecksum, new DataView(data.buffer));
   }
 

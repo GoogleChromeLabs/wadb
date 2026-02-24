@@ -50,7 +50,7 @@ class MyKeyStore implements KeyStore {
 
 const keyStore = new MyKeyStore();
 
-connectButton.addEventListener('click', async (_) => {
+connectButton.addEventListener('click', async (_event) => {
   try {
     transport = await WebUsbTransport.open(options);
     adbClient = new AdbClient(transport, options, keyStore);
@@ -64,14 +64,14 @@ connectButton.addEventListener('click', async (_) => {
     disconnectButton.classList.toggle('hidden');
     startButton.removeAttribute('disabled');
     screenshotButton.removeAttribute('disabled');
-    stopButton.removeAttribute('disabled');        
+    stopButton.removeAttribute('disabled');
   } catch(e) {
     console.error('Connection Failed: ', e);
     status.textContent = 'Failed to connect to a device';
   }
 });
 
-disconnectButton.addEventListener('click', async (_) => {
+disconnectButton.addEventListener('click', async (_event) => {
   try {
     if (adbClient) {
       try {
@@ -89,7 +89,7 @@ disconnectButton.addEventListener('click', async (_) => {
     disconnectButton.classList.toggle('hidden');
     startButton.disabled = true;
     stopButton.disabled = true;
-    screenshotButton.disabled = true;    
+    screenshotButton.disabled = true;
     status.textContent = 'Connect to a device to start';
   } catch(e) {
     console.error('Disconnecting Failed: ', e);
