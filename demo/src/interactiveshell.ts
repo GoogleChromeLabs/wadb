@@ -14,24 +14,12 @@
  *  limitations under the License.
  */
 
-import {AdbClient, KeyStore, Options, Shell, WebUsbTransport} from 'wadb';
+import {AdbClient, IndexedDbKeyStore, Options, Shell, WebUsbTransport} from 'wadb';
 
 const connectButton = document.querySelector('#connect')!;
 const disconnectButton = document.querySelector('#disconnect')!;
 const output = document.querySelector('#output')!;
 const input = (document.querySelector('#input') as HTMLInputElement)!;
-
-class MyKeyStore implements KeyStore {
-  private keys: CryptoKeyPair[] = [];
-  async loadKeys(): Promise<CryptoKeyPair[]> {
-    return this.keys;
-  }
-
-  async saveKey(key: CryptoKeyPair): Promise<void> {
-    this.keys.push(key);
-    console.log('Saving Key' + key);
-  }
-}
 
 const options: Options = {
   debug: true,
@@ -40,7 +28,7 @@ const options: Options = {
   keySize: 2048,
 };
 
-const keyStore = new MyKeyStore();
+const keyStore = new IndexedDbKeyStore();
 
 let transport: WebUsbTransport | null = null;
 let adbClient: AdbClient | null = null;

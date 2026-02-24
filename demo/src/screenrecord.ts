@@ -14,7 +14,7 @@
  *  limitations under the License.
  */
 
-import {AdbClient, WebUsbTransport, Options, KeyStore, Stream} from 'wadb';
+import {AdbClient, WebUsbTransport, Options, IndexedDbKeyStore, Stream} from 'wadb';
 
 let transport: WebUsbTransport | null;
 let adbClient: AdbClient | null;
@@ -36,19 +36,7 @@ const options: Options = {
   keySize: 2048,
 };
 
-class MyKeyStore implements KeyStore {
-  private keys: CryptoKeyPair[] = [];
-  async loadKeys(): Promise<CryptoKeyPair[]> {
-    return this.keys;
-  }
-
-  async saveKey(key: CryptoKeyPair): Promise<void> {
-    this.keys.push(key);
-    console.log('Saving Key' + key);
-  }
-}
-
-const keyStore = new MyKeyStore();
+const keyStore = new IndexedDbKeyStore();
 
 connectButton.addEventListener('click', async (_event) => {
   try {
