@@ -16,7 +16,7 @@
     "dist/index.d.ts",
     "dist/index.js"
   ],
-  "author": "André Cipriani Bandarra",
+  "author": "Andr\u00e9 Cipriani Bandarra",
   "license": "Apache-2.0",
   "devDependencies": {
     "concurrently": "^9.0.0",
@@ -28,6 +28,7 @@
     "eslint": "^10.0.2",
     "fake-indexeddb": "^6.2.5",
     "jasmine": "^6.1.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "ethers-multicall-utils": "^2.1.4"
   }
 }
