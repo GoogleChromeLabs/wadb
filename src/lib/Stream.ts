@@ -124,6 +124,11 @@ export class Stream {
     }
     await this.client.sendMessage(okayMessage);
 
+    if (fileDataMessage.data.byteLength < 8) {
+      throw new Error(
+          `Malformed sync response: truncated SyncFrame header (${fileDataMessage.data.byteLength} bytes)`);
+    }
+
     let syncFrame = SyncFrame.fromDataView(new DataView(fileDataMessage.data.buffer.slice(0, 8)));
     let buffer = new Uint8Array(fileDataMessage.data.buffer.slice(8));
     const chunks: ArrayBuffer[] = [];
@@ -158,6 +163,10 @@ export class Stream {
       }
       chunks.push(buffer.slice(0, syncFrame.byteLength).buffer);
       buffer = buffer.slice(syncFrame.byteLength);
+      if (buffer.byteLength < 8) {
+        throw new Error(
+            `Malformed sync response: truncated SyncFrame header (${buffer.byteLength} bytes)`);
+      }
       syncFrame = SyncFrame.fromDataView(new DataView(buffer.slice(0, 8).buffer));
       buffer = buffer.slice(8);
     }
