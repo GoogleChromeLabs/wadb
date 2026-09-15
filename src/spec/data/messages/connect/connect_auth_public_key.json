@@ -1,4 +1,4 @@
 [
-  {"cmd": "AUTH", "arg0": 1, "arg1": 0, "data": "auth_token"},
+  {"cmd": "AUTH", "arg0": 1, "arg1": 0, "data": "auth_token_012345678"},
   {"cmd": "CNXN", "arg0": 1, "arg1": 65536, "data": "host://"}
 ]
