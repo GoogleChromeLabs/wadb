@@ -116,6 +116,79 @@ describe('Stream', () => {
       await expectAsync(stream.pull('/test/file')).toBeRejectedWithError(
           /sync: DATA chunk length \d+ exceeds protocol maximum of 65536/);
     });
+
+    it('rejects when device leaves fewer than 8 bytes after a DATA frame', async () => {
+      const mockTransport = new MockTransport();
+      const adbClient = new AdbClient(mockTransport, options, new MockKeyStore());
+      const stream = new Stream(adbClient, 'sync:', 1, 34, options);
+
+      // Handshake: device sends OKAY for RECV command and OKAY for remote path
+      stream.consumeMessage(Message.newMessage('OKAY', 34, 1, false));
+      stream.consumeMessage(Message.newMessage('OKAY', 34, 1, false));
+
+      // Device sends a DATA frame with 4 bytes of payload followed by 2 trailing bytes
+      // instead of a complete 8-byte SyncFrame header.
+      const dataPayloadSize = 4;
+      const trailingBytes = 2;
+      const payload = new Uint8Array(8 + dataPayloadSize + trailingBytes);
+      const view = new DataView(payload.buffer);
+      view.setUint32(0, encodeCmd('DATA'), true);
+      view.setUint32(4, dataPayloadSize, true);
+      payload.set([0x41, 0x41, 0x41, 0x41], 8);
+      payload.set([0x58, 0x58], 8 + dataPayloadSize);
+
+      stream.consumeMessage(Message.newMessage('WRTE', 34, 1, false, view));
+
+      await expectAsync(stream.pull('/test/file')).toBeRejectedWithError(
+          /truncated SyncFrame header/);
+    });
+
+    it('rejects when a subsequent message leaves fewer than 8 bytes after a DATA frame', async () => {
+      const mockTransport = new MockTransport();
+      const adbClient = new AdbClient(mockTransport, options, new MockKeyStore());
+      const stream = new Stream(adbClient, 'sync:', 1, 34, options);
+
+      // Handshake: device sends OKAY for RECV command and OKAY for remote path
+      stream.consumeMessage(Message.newMessage('OKAY', 34, 1, false));
+      stream.consumeMessage(Message.newMessage('OKAY', 34, 1, false));
+
+      // First chunk: valid DATA frame with 4 bytes of payload (total 12 bytes)
+      const dataPayloadSize = 4;
+      const payload1 = new Uint8Array(8 + dataPayloadSize);
+      const view1 = new DataView(payload1.buffer);
+      view1.setUint32(0, encodeCmd('DATA'), true);
+      view1.setUint32(4, dataPayloadSize, true);
+      payload1.set([0x41, 0x41, 0x41, 0x41], 8);
+      stream.consumeMessage(Message.newMessage('WRTE', 34, 1, false, view1));
+
+      // Second message: only 2 trailing bytes instead of a complete 8-byte SyncFrame header
+      const payload2 = new Uint8Array(2);
+      payload2.set([0x58, 0x58], 0);
+      const view2 = new DataView(payload2.buffer);
+      stream.consumeMessage(Message.newMessage('WRTE', 34, 1, false, view2));
+
+      await expectAsync(stream.pull('/test/file')).toBeRejectedWithError(
+          /truncated SyncFrame header/);
+    });
+
+    it('rejects when initial sync response has fewer than 8 bytes', async () => {
+      const mockTransport = new MockTransport();
+      const adbClient = new AdbClient(mockTransport, options, new MockKeyStore());
+      const stream = new Stream(adbClient, 'sync:', 1, 34, options);
+
+      // Handshake: device sends OKAY for RECV command and OKAY for remote path
+      stream.consumeMessage(Message.newMessage('OKAY', 34, 1, false));
+      stream.consumeMessage(Message.newMessage('OKAY', 34, 1, false));
+
+      // Device sends an initial WRTE message with fewer than 8 bytes
+      const payload = new Uint8Array(4);
+      const view = new DataView(payload.buffer);
+      stream.consumeMessage(Message.newMessage('WRTE', 34, 1, false, view));
+
+      await expectAsync(stream.pull('/test/file')).toBeRejectedWithError(
+          /truncated SyncFrame header/);
+    });
   });
 });
+
 

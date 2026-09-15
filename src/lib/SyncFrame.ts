@@ -38,6 +38,10 @@ export class SyncFrame {
   }
 
   static fromDataView(dataView: DataView): SyncFrame {
+    if (dataView.byteLength < 8) {
+      throw new Error(
+          `SyncFrame requires at least 8 bytes, received ${dataView.byteLength}`);
+    }
     const cmd = decodeCmd(dataView.getUint32(0, true));
     const byteLength = dataView.getUint32(4, true);
     return new SyncFrame(cmd, byteLength);

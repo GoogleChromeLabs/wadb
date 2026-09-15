@@ -27,6 +27,12 @@ describe('SyncFrame', () => {
       expect(syncFrame.cmd).toBe('WRTE');
       expect(syncFrame.byteLength).toBe(256);
     });
+
+    it('rejects DataView with fewer than 8 bytes', () => {
+      const dataView = new DataView(new ArrayBuffer(7));
+      expect(() => SyncFrame.fromDataView(dataView))
+          .toThrowError(/SyncFrame requires at least 8 bytes, received 7/);
+    });
   });
 
   describe('#toDataView', () => {
