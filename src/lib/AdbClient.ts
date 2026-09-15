@@ -177,11 +177,22 @@ export class AdbClient implements MessageListener {
       throw new Error('AUTH message doens\'t contain data');
     }
 
-    const token = authResponse.data.buffer as ArrayBuffer;
+    if (authResponse.data.byteLength !== 20) {
+      throw new Error(
+          `Invalid AUTH token length. Expected 20 bytes and received ${authResponse.data.byteLength}`);
+    }
 
-    // Try signing with one of the stored keys
+    const token = new Uint8Array(
+        authResponse.data.buffer as ArrayBuffer,
+        authResponse.data.byteOffset,
+        authResponse.data.byteLength);
+
+    // Try signing with the most recently stored key only. Attempting every
+    // stored key would let a device that keeps rejecting signatures harvest a
+    // valid signature over its chosen token from every private key we hold.
     const keys = await this.keyStore.loadKeys();
-    for (const key of keys) {
+    if (keys.length > 0) {
+      const key = keys[keys.length - 1];
       const signed = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', key.privateKey, token);
       const signatureMessage =
           Message.authSignature(new DataView(signed), this.options.useChecksum);
