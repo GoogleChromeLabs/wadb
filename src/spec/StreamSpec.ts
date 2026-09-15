@@ -19,6 +19,7 @@ import {MockKeyStore} from './mock/MockKeyStore';
 import {Options} from '../lib/Options';
 import {MockTransport} from './mock/MockTransport';
 import {Stream} from '../lib/Stream';
+import {Message} from '../lib/message';
 
 const options = {
   debug: false,
@@ -37,6 +38,19 @@ describe('Stream', () => {
       expect(stream.localId).toBe(1);
       expect(stream.remoteId).toBe(34); // Defined in open.json
       expect(stream.service).toBe('test:');
+    });
+  });
+
+  describe('#consumeMessage', () => {
+    it('Caps unread messages to MAX_PENDING_MESSAGES to prevent unbounded retention', () => {
+      const mockTransport = new MockTransport();
+      const adbClient = new AdbClient(mockTransport, options, new MockKeyStore());
+      const stream = new Stream(adbClient, 'test:', 1, 34, options);
+      const msg = Message.newMessage('WRTE', 34, 1, false);
+      for (let i = 0; i < 300; i++) {
+        expect(stream.consumeMessage(msg)).toBeTrue();
+      }
+      expect((stream as unknown as {messageQueue: {size: number}}).messageQueue.size).toBe(256);
     });
   });
 });

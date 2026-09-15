@@ -31,6 +31,11 @@ class QueueEntry<T> {
 export class Queue<T> {
   head?: QueueEntry<T>;
   tail?: QueueEntry<T>;
+  private length = 0;
+
+  get size(): number {
+    return this.length;
+  }
 
   /**
    * Adds an item to the queue.
@@ -47,6 +52,7 @@ export class Queue<T> {
     if (!this.head) {
       this.head = this.tail;
     }
+    this.length++;
   }
 
   /**
@@ -60,6 +66,10 @@ export class Queue<T> {
     }
     const node = this.head!.data;
     this.head = this.head!.next;
+    if (!this.head) {
+      this.tail = undefined;
+    }
+    this.length--;
     return node;
   }
 
@@ -83,6 +93,16 @@ export class AsyncBlockingQueue<T> {
   private promiseQueue: Queue<Promise<T>> = new Queue<Promise<T>>();
   private resolverQueue: Queue<Resolver<T>> = new Queue<Resolver<T>>();
 
+  constructor(readonly maxCapacity: number = Infinity) {}
+
+  get size(): number {
+    return this.promiseQueue.size;
+  }
+
+  get isFull(): boolean {
+    return this.size >= this.maxCapacity;
+  }
+
   private add(): void {
     const promise = new Promise<T>(resolve => {
       this.resolverQueue.enqueue(resolve);
@@ -91,15 +111,20 @@ export class AsyncBlockingQueue<T> {
   }
 
   /**
-   * Enqueues an item
+   * Enqueues an item. Returns true if the item was enqueued or handed to a waiting
+   * receiver, or false if the queue is full and the item was dropped.
    * @param data
    */
-  enqueue(data: T): void {
+  enqueue(data: T): boolean {
     if (this.resolverQueue.isEmpty()) {
+      if (this.isFull) {
+        return false;
+      }
       this.add();
     }
     const resolve = this.resolverQueue.dequeue();
     resolve(data);
+    return true;
   }
 
   /**
