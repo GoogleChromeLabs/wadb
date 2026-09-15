@@ -224,6 +224,193 @@ describe('AdbClient', () => {
       await expectAsync(adbClient.connect()).toBeRejected();
     });
   });
+
+  describe('#shell', () => {
+    it('rejects when device output exceeds maximum allowed shell output size', async () => {
+      const transport = new ShellMockTransport();
+      const adbClient = new AdbClient(transport, options, keyStore);
+
+      const remoteId = 42;
+      let localId: number | undefined;
+      const chunkSize = 64 * 1024; // 64 KiB
+      const totalChunks = 140; // 140 * 64 KiB = 8.75 MiB (> 8 MiB limit)
+      let chunksSent = 0;
+      const chunkData = new DataView(new Uint8Array(chunkSize).fill(0x61).buffer);
+
+      transport.onWrite = (msg: Message) => {
+        if (msg.header.cmd === 'OPEN') {
+          localId = msg.header.arg0;
+          transport.pushMessage(Message.newMessage('OKAY', remoteId, localId, false));
+          setTimeout(() => {
+            if (localId !== undefined && chunksSent < totalChunks) {
+              chunksSent++;
+              transport.pushMessage(Message.newMessage('WRTE', remoteId, localId, false, chunkData));
+            }
+          }, 5);
+        } else if (msg.header.cmd === 'OKAY' && localId !== undefined) {
+          if (chunksSent < totalChunks) {
+            chunksSent++;
+            transport.pushMessage(Message.newMessage('WRTE', remoteId, localId, false, chunkData));
+          } else if (chunksSent === totalChunks) {
+            chunksSent++;
+            transport.pushMessage(Message.newMessage('CLSE', remoteId, localId, false));
+          }
+        }
+      };
+
+      await expectAsync(adbClient.shell('test_command')).toBeRejected();
+    });
+
+    it('closes the stream when device output exceeds maximum allowed shell output size', async () => {
+      const transport = new ShellMockTransport();
+      const adbClient = new AdbClient(transport, options, keyStore);
+
+      const remoteId = 42;
+      let localId: number | undefined;
+      const chunkSize = 64 * 1024;
+      const totalChunks = 140; // 8.75 MiB (> 8 MiB limit)
+      let chunksSent = 0;
+      const chunkData = new DataView(new Uint8Array(chunkSize).fill(0x61).buffer);
+
+      transport.onWrite = (msg: Message) => {
+        if (msg.header.cmd === 'OPEN') {
+          localId = msg.header.arg0;
+          transport.pushMessage(Message.newMessage('OKAY', remoteId, localId, false));
+          setTimeout(() => {
+            if (localId !== undefined && chunksSent < totalChunks) {
+              chunksSent++;
+              transport.pushMessage(Message.newMessage('WRTE', remoteId, localId, false, chunkData));
+            }
+          }, 5);
+        } else if (msg.header.cmd === 'OKAY' && localId !== undefined) {
+          if (chunksSent < totalChunks) {
+            chunksSent++;
+            transport.pushMessage(Message.newMessage('WRTE', remoteId, localId, false, chunkData));
+          } else if (chunksSent === totalChunks) {
+            chunksSent++;
+            transport.pushMessage(Message.newMessage('CLSE', remoteId, localId, false));
+          }
+        }
+      };
+
+      try {
+        await adbClient.shell('test_command');
+      } catch {
+        // Expected to reject when limit is enforced
+      }
+
+      const outbound = extractOutboundMessages(transport.receivedData);
+      const closeMessages = outbound.filter(
+          (m) => m.header.cmd === 'CLSE' && m.header.arg0 === localId);
+      expect(closeMessages.length).toBeGreaterThan(0);
+    });
+
+    it('successfully accumulates output within the size limit', async () => {
+      const transport = new ShellMockTransport();
+      const adbClient = new AdbClient(transport, options, keyStore);
+
+      const remoteId = 42;
+      let localId: number | undefined;
+      const chunks = ['hello ', 'world\n'];
+      let chunkIndex = 0;
+
+      transport.onWrite = (msg: Message) => {
+        if (msg.header.cmd === 'OPEN') {
+          localId = msg.header.arg0;
+          transport.pushMessage(Message.newMessage('OKAY', remoteId, localId, false));
+          setTimeout(() => {
+            if (localId !== undefined && chunkIndex < chunks.length) {
+              const data = new DataView(new TextEncoder().encode(chunks[chunkIndex++]).buffer);
+              transport.pushMessage(Message.newMessage('WRTE', remoteId, localId, false, data));
+            }
+          }, 5);
+        } else if (msg.header.cmd === 'OKAY' && localId !== undefined) {
+          if (chunkIndex < chunks.length) {
+            const data = new DataView(new TextEncoder().encode(chunks[chunkIndex++]).buffer);
+            transport.pushMessage(Message.newMessage('WRTE', remoteId, localId, false, data));
+          } else if (chunkIndex === chunks.length) {
+            chunkIndex++;
+            transport.pushMessage(Message.newMessage('CLSE', remoteId, localId, false));
+          }
+        }
+      };
+
+      const result = await adbClient.shell('echo "hello world"');
+      expect(result).toBe('hello world\n');
+    });
+
+    it('respects custom maxShellOutput in options', async () => {
+      const customOptions: Options = {
+        ...options,
+        maxShellOutput: 100,
+      };
+      const transport = new ShellMockTransport();
+      const adbClient = new AdbClient(transport, customOptions, keyStore);
+
+      const remoteId = 42;
+      let localId: number | undefined;
+      const chunkData = new DataView(new Uint8Array(60).fill(0x61).buffer);
+      let chunksSent = 0;
+
+      transport.onWrite = (msg: Message) => {
+        if (msg.header.cmd === 'OPEN') {
+          localId = msg.header.arg0;
+          transport.pushMessage(Message.newMessage('OKAY', remoteId, localId, false));
+          setTimeout(() => {
+            if (localId !== undefined && chunksSent < 3) {
+              chunksSent++;
+              transport.pushMessage(Message.newMessage('WRTE', remoteId, localId, false, chunkData));
+            }
+          }, 5);
+        } else if (msg.header.cmd === 'OKAY' && localId !== undefined) {
+          if (chunksSent < 3) {
+            chunksSent++;
+            transport.pushMessage(Message.newMessage('WRTE', remoteId, localId, false, chunkData));
+          } else if (chunksSent === 3) {
+            chunksSent++;
+            transport.pushMessage(Message.newMessage('CLSE', remoteId, localId, false));
+          }
+        }
+      };
+
+      await expectAsync(adbClient.shell('test_command')).toBeRejectedWithError(
+          /Shell command 'test_command' output exceeded maximum allowed limit of 100 bytes\./);
+    });
+
+    it('respects custom maxOutputSize in shell options', async () => {
+      const transport = new ShellMockTransport();
+      const adbClient = new AdbClient(transport, options, keyStore);
+
+      const remoteId = 42;
+      let localId: number | undefined;
+      const chunkData = new DataView(new Uint8Array(60).fill(0x61).buffer);
+      let chunksSent = 0;
+
+      transport.onWrite = (msg: Message) => {
+        if (msg.header.cmd === 'OPEN') {
+          localId = msg.header.arg0;
+          transport.pushMessage(Message.newMessage('OKAY', remoteId, localId, false));
+          setTimeout(() => {
+            if (localId !== undefined && chunksSent < 3) {
+              chunksSent++;
+              transport.pushMessage(Message.newMessage('WRTE', remoteId, localId, false, chunkData));
+            }
+          }, 5);
+        } else if (msg.header.cmd === 'OKAY' && localId !== undefined) {
+          if (chunksSent < 3) {
+            chunksSent++;
+            transport.pushMessage(Message.newMessage('WRTE', remoteId, localId, false, chunkData));
+          } else if (chunksSent === 3) {
+            chunksSent++;
+            transport.pushMessage(Message.newMessage('CLSE', remoteId, localId, false));
+          }
+        }
+      };
+
+      await expectAsync(adbClient.shell('test_command', {maxOutputSize: 50})).toBeRejectedWithError(
+          /Shell command 'test_command' output exceeded maximum allowed limit of 50 bytes\./);
+    });
+  });
 });
 
 class DiscreteMockTransport implements Transport {
@@ -265,6 +452,89 @@ class DiscreteMockTransport implements Transport {
   }
 }
 
+class ShellMockTransport implements Transport {
+  public receivedData: DataView[] = [];
+  private readBuffer: Uint8Array = new Uint8Array(0);
+  private pendingRead?: {
+    len: number;
+    resolve: (data: DataView) => void;
+    reject: (err: Error) => void;
+  };
+  public onWrite?: (msg: Message) => void;
+  private writeBuffer: Uint8Array = new Uint8Array(0);
+
+  pushData(data: Uint8Array): void {
+    const combined = new Uint8Array(this.readBuffer.length + data.length);
+    combined.set(this.readBuffer, 0);
+    combined.set(data, this.readBuffer.length);
+    this.readBuffer = combined;
+    this.checkPendingRead();
+  }
+
+  pushMessage(msg: Message): void {
+    const headerBytes = new Uint8Array(msg.header.toDataView().buffer);
+    this.pushData(headerBytes);
+    if (msg.data) {
+      const dataBytes = new Uint8Array(msg.data.buffer, msg.data.byteOffset, msg.data.byteLength);
+      this.pushData(dataBytes);
+    }
+  }
+
+  private checkPendingRead(): void {
+    if (this.pendingRead && this.readBuffer.length >= this.pendingRead.len) {
+      const {len, resolve} = this.pendingRead;
+      this.pendingRead = undefined;
+      const chunk = this.readBuffer.slice(0, len);
+      this.readBuffer = this.readBuffer.slice(len);
+      resolve(new DataView(chunk.buffer));
+    }
+  }
+
+  async read(len: number): Promise<DataView> {
+    if (this.readBuffer.length >= len) {
+      const chunk = this.readBuffer.slice(0, len);
+      this.readBuffer = this.readBuffer.slice(len);
+      return new DataView(chunk.buffer);
+    }
+    return new Promise<DataView>((resolve, reject) => {
+      this.pendingRead = {len, resolve, reject};
+    });
+  }
+
+  async write(data: ArrayBuffer): Promise<void> {
+    this.receivedData.push(new DataView(data.slice(0)));
+    const chunk = new Uint8Array(data);
+    const combined = new Uint8Array(this.writeBuffer.length + chunk.length);
+    combined.set(this.writeBuffer, 0);
+    combined.set(chunk, this.writeBuffer.length);
+    this.writeBuffer = combined;
+
+    while (this.writeBuffer.length >= 24) {
+      const headerView = new DataView(this.writeBuffer.buffer, this.writeBuffer.byteOffset, 24);
+      const header = MessageHeader.parse(headerView, false);
+      const totalLen = 24 + header.length;
+      if (this.writeBuffer.length < totalLen) {
+        break;
+      }
+      let dataView: DataView | undefined;
+      if (header.length > 0) {
+        dataView = new DataView(this.writeBuffer.buffer, this.writeBuffer.byteOffset + 24, header.length);
+      }
+      const msg = new Message(header, dataView);
+      this.writeBuffer = this.writeBuffer.slice(totalLen);
+      if (this.onWrite) {
+        this.onWrite(msg);
+      }
+    }
+  }
+
+  close(): void {
+    if (this.pendingRead) {
+      this.pendingRead.reject(new Error('Transport Closed'));
+    }
+  }
+}
+
 function extractOutboundMessages(receivedData: DataView[]): Message[] {
   const messages: Message[] = [];
   let i = 0;
@@ -279,5 +549,3 @@ function extractOutboundMessages(receivedData: DataView[]): Message[] {
   }
   return messages;
 }
-
-

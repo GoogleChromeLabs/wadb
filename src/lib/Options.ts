@@ -19,4 +19,6 @@
    dump: boolean;
    useChecksum: boolean;
    keySize: number;
+   maxShellOutput?: number;
  }
+
