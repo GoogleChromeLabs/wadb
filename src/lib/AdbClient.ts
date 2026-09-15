@@ -27,6 +27,7 @@ import {Framebuffer} from './Framebuffer';
 const VERSION = 0x01000000;
 const VERSION_NO_CHECKSUM = 0x01000001;
 const MAX_PAYLOAD = 256 * 1024;
+const DEFAULT_MAX_SHELL_OUTPUT = 8 * 1024 * 1024;
 
 const MACHINE_BANNER = 'host::\0';
 
@@ -34,6 +35,10 @@ const MACHINE_BANNER = 'host::\0';
 // device that streams frames not addressed to any open Stream should not be
 // able to grow the renderer heap without bound.
 const MAX_PENDING_MESSAGES = 256;
+
+export interface ShellOptions {
+  maxOutputSize?: number;
+}
 
 export class AdbClient implements MessageListener {
   private messageChannel: MessageChannel;
@@ -112,20 +117,42 @@ export class AdbClient implements MessageListener {
     this.messageChannel.close();
   }
 
-  async shell(command: string): Promise<string> {
+  async shell(command: string, shellOptions?: ShellOptions | number): Promise<string> {
+    const maxOutput = typeof shellOptions === 'number' ?
+        shellOptions :
+        (shellOptions?.maxOutputSize ?? this.options.maxShellOutput ?? DEFAULT_MAX_SHELL_OUTPUT);
+
     const stream = await Stream.open(this, `shell:${command}`, this.options);
     const okayMessage = Message.newMessage('OKAY', stream.localId, stream.remoteId, this.options.useChecksum);
-    let result = '';
-    let message;
-    do {
-      message = await stream.read();
-      if (message.header.cmd === 'WRTE') {
-        await this.sendMessage(okayMessage);
-        result += message.dataAsString() || '';
-      }
-    } while (message.header.cmd !== 'CLSE');
-    stream.client.unregisterStream(stream);
-    return result;
+    const chunks: string[] = [];
+    let totalBytes = 0;
+    let message: Message;
+
+    try {
+      do {
+        message = await stream.read();
+        if (message.header.cmd === 'WRTE') {
+          await this.sendMessage(okayMessage);
+          const dataLength = message.data?.byteLength ?? 0;
+          totalBytes += dataLength;
+          if (totalBytes > maxOutput) {
+            try {
+              await stream.close();
+            } catch {
+              // Best-effort close; proceed to throw the abort error.
+            }
+            throw new Error(
+                `Shell command '${command}' output exceeded maximum allowed limit of ${maxOutput} bytes. ` +
+                'To increase this limit, specify \'maxOutputSize\' in shell options or \'maxShellOutput\' in AdbClient options.');
+          }
+          chunks.push(message.dataAsString() || '');
+        }
+      } while (message.header.cmd !== 'CLSE');
+    } finally {
+      stream.client.unregisterStream(stream);
+    }
+
+    return chunks.join('');
   }
 
   async framebuffer(): Promise<Framebuffer> {

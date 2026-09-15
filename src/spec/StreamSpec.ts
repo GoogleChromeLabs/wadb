@@ -30,6 +30,10 @@ const options = {
 
 describe('Stream', () => {
   describe('#open', () => {
+    beforeEach(() => {
+      (Stream as unknown as {nextId: number}).nextId = 1;
+    });
+
     it('Opens a stream', async () => {
       const mockTransport = new MockTransport();
       await mockTransport.pushFromFile('src/spec/data/messages/stream/open.json');

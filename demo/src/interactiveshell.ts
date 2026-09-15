@@ -26,6 +26,7 @@ const options: Options = {
   useChecksum: false,
   dump: false,
   keySize: 2048,
+  maxShellOutput: 8 * 1024 * 1024,
 };
 
 const keyStore = new IndexedDbKeyStore();
