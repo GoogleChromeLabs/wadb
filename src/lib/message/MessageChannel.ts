@@ -20,6 +20,12 @@ import {MessageHeader} from './MessageHeader';
 import {Options} from '../Options';
 import {MessageListener} from './MessageListener';
 
+// Upper bound on the payload size accepted from the remote peer. The
+// client advertises 256 KiB (see MAX_PAYLOAD in AdbClient.ts); allow up to
+// 1 MiB inbound to tolerate peers negotiating the modern ADB maximum, but
+// reject anything larger so an oversized frame cannot force an unbounded read.
+const MAX_INBOUND_PAYLOAD = 1024 * 1024;
+
 export class MessageChannel {
   private active = true;
 
@@ -31,14 +37,21 @@ export class MessageChannel {
   }
 
   private async readLoop(): Promise<void> {
-    let message: Message;
-    do {
-      message = await this.read();
+    try {
+      let message: Message;
+      do {
+        message = await this.read();
+        if (this.options.debug) {
+          console.log('<<<', message);
+        }
+        this.listener.newMessage(message);
+      } while(this.active);
+    } catch (e) {
       if (this.options.debug) {
-        console.log('<<<', message);
+        console.log('Error in MessageChannel readLoop:', e);
       }
-      this.listener.newMessage(message);
-    } while(this.active);
+      this.close();
+    }
   }
 
   private async readHeader(): Promise<MessageHeader> {
@@ -48,6 +61,11 @@ export class MessageChannel {
 
   private async read(): Promise<Message> {
     const header = await this.readHeader();
+    if (header.length > MAX_INBOUND_PAYLOAD) {
+      throw new Error(
+          `Rejecting message: payload length ${header.length} exceeds ` +
+          `MAX_INBOUND_PAYLOAD (${MAX_INBOUND_PAYLOAD})`);
+    }
     let receivedData;
     switch (header.cmd) {
       default: {
