@@ -128,20 +128,32 @@ export class Stream {
     let buffer = new Uint8Array(fileDataMessage.data.buffer.slice(8));
     const chunks: ArrayBuffer[] = [];
     while (syncFrame.cmd !== 'DONE') {
-      while (syncFrame.byteLength >= buffer.byteLength) {
-        fileDataMessage = await this.read();
+      if (syncFrame.byteLength >= buffer.byteLength) {
+        const parts: Uint8Array[] = [buffer];
+        let totalLength = buffer.byteLength;
+        while (syncFrame.byteLength >= totalLength) {
+          fileDataMessage = await this.read();
 
-        if (!fileDataMessage.data) {
-          continue;
+          if (!fileDataMessage.data) {
+            continue;
+          }
+
+          await this.client.sendMessage(okayMessage);
+
+          const part = new Uint8Array(
+              fileDataMessage.data.buffer,
+              fileDataMessage.data.byteOffset,
+              fileDataMessage.data.byteLength);
+          parts.push(part);
+          totalLength += part.byteLength;
         }
 
-        await this.client.sendMessage(okayMessage);
-
-        // Join both arrays
-        const newLength = buffer.byteLength + fileDataMessage.data.byteLength;
-        const newBuffer = new Uint8Array(newLength);
-        newBuffer.set(buffer, 0);
-        newBuffer.set(new Uint8Array(fileDataMessage.data.buffer), buffer.byteLength);
+        const newBuffer = new Uint8Array(totalLength);
+        let offset = 0;
+        for (const part of parts) {
+          newBuffer.set(part, offset);
+          offset += part.byteLength;
+        }
         buffer = newBuffer;
       }
       chunks.push(buffer.slice(0, syncFrame.byteLength).buffer);
