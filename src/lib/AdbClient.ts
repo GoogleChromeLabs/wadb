@@ -31,9 +31,14 @@ const MAX_PAYLOAD = 256 * 1024;
 
 const MACHINE_BANNER = 'host::\0';
 
+// Cap on unmatched device messages retained in messageQueue. A rogue or buggy
+// device that streams frames not addressed to any open Stream should not be
+// able to grow the renderer heap without bound.
+const MAX_PENDING_MESSAGES = 256;
+
 export class AdbClient implements MessageListener {
   private messageChannel: MessageChannel;
-  private messageQueue = new AsyncBlockingQueue<Message>();
+  private messageQueue = new AsyncBlockingQueue<Message>(MAX_PENDING_MESSAGES);
   private openStreams: Set<Stream> = new Set();
 
   /**
@@ -64,7 +69,12 @@ export class AdbClient implements MessageListener {
         return;
       }
     }
-    this.messageQueue.enqueue(msg);
+    if (!this.messageQueue.enqueue(msg)) {
+      // Nothing is draining the queue; drop rather than retain unbounded state.
+      if (this.options.debug) {
+        console.warn('AdbClient: dropping unmatched device message; queue full');
+      }
+    }
   }
 
   public async awaitMessage(): Promise<Message> {

@@ -57,6 +57,21 @@ describe('Queues', () => {
         expect(queue.isEmpty()).toBeTrue();
       });
     });
+
+    describe('#size', () => {
+      it('Tracks size when enqueuing and dequeuing', () => {
+        const queue = new Queue<string>();
+        expect(queue.size).toBe(0);
+        queue.enqueue('one');
+        expect(queue.size).toBe(1);
+        queue.enqueue('two');
+        expect(queue.size).toBe(2);
+        queue.dequeue();
+        expect(queue.size).toBe(1);
+        queue.dequeue();
+        expect(queue.size).toBe(0);
+      });
+    });
   });
 
   describe('AsyncBlockingQueue', () => {
@@ -143,6 +158,50 @@ describe('Queues', () => {
 
         expect(await p1).toBe('one');
         expect(await p2).toBe('two');
+      });
+    });
+
+    describe('capacity and bounds', () => {
+      it('Tracks size and isFull accurately', async () => {
+        const queue = new AsyncBlockingQueue<string>(2);
+        expect(queue.size).toBe(0);
+        expect(queue.isFull).toBeFalse();
+
+        expect(queue.enqueue('one')).toBeTrue();
+        expect(queue.size).toBe(1);
+        expect(queue.isFull).toBeFalse();
+
+        expect(queue.enqueue('two')).toBeTrue();
+        expect(queue.size).toBe(2);
+        expect(queue.isFull).toBeTrue();
+
+        // Over capacity: drops item and returns false
+        expect(queue.enqueue('three')).toBeFalse();
+        expect(queue.size).toBe(2);
+
+        // Dequeue removes one item
+        expect(await queue.dequeue()).toBe('one');
+        expect(queue.size).toBe(1);
+        expect(queue.isFull).toBeFalse();
+
+        // Enqueue works again
+        expect(queue.enqueue('four')).toBeTrue();
+        expect(queue.size).toBe(2);
+        expect(await queue.dequeue()).toBe('two');
+        expect(await queue.dequeue()).toBe('four');
+        expect(queue.size).toBe(0);
+      });
+
+      it('Does not drop when resolvers are waiting even if maxCapacity is reached', async () => {
+        const queue = new AsyncBlockingQueue<string>(1);
+        const p1 = queue.dequeue();
+        expect(queue.hasPendingResolvers()).toBeTrue();
+        expect(queue.size).toBe(0);
+
+        // Handed directly to waiting resolver
+        expect(queue.enqueue('one')).toBeTrue();
+        expect(await p1).toBe('one');
+        expect(queue.size).toBe(0);
       });
     });
   });

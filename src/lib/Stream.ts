@@ -21,9 +21,12 @@ import {toHex32} from './Helpers';
 import {SyncFrame} from './SyncFrame';
 import {AsyncBlockingQueue} from './Queues';
 
+// Cap on unread messages retained in a Stream's messageQueue.
+const MAX_PENDING_MESSAGES = 256;
+
 export class Stream {
   private static nextId = 1;
-  private messageQueue = new AsyncBlockingQueue<Message>();
+  private messageQueue = new AsyncBlockingQueue<Message>(MAX_PENDING_MESSAGES);
 
   constructor(readonly client: AdbClient, readonly service: string, readonly localId: number,
               readonly remoteId: number, private options: Options) {
@@ -45,7 +48,11 @@ export class Stream {
       msg.header.arg1 === 0 || msg.header.arg1 !== this.localId) {
       return false;
     }
-    this.messageQueue.enqueue(msg);
+    if (!this.messageQueue.enqueue(msg)) {
+      if (this.options.debug) {
+        console.warn(`Stream ${this.service}: dropping message; queue full`);
+      }
+    }
     return true;
   }
 
