@@ -112,6 +112,18 @@ export class Framebuffer {
     const alphaOffset = message.data.getUint32(48, true);
     const alphaLength = message.data.getUint32(52, true);
 
+    // The fbinfo struct is supplied by the device and therefore untrusted.
+    // Reject implausible size values before allocating so a malicious or
+    // buggy device cannot force an unbounded allocation.
+    const MAX_FRAMEBUFFER_BYTES = 64 * 1024 * 1024; // 64 MiB
+    const expectedSize = width * height * (bpp / 8);
+    if (size > MAX_FRAMEBUFFER_BYTES || size !== expectedSize) {
+      await stream.write('CLSE');
+      throw new Error(
+        `Rejecting framebuffer: size=${size} exceeds ${MAX_FRAMEBUFFER_BYTES} ` +
+        `or does not match width*height*bpp/8=${expectedSize}`);
+    }
+
     const buffer = new Uint8Array(size);
 
     let bytesReceived = 0;
