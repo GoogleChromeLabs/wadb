@@ -15,7 +15,7 @@
  */
 
 import {encodeCmd} from '../lib/Helpers';
-import {SyncFrame} from '../lib/SyncFrame';
+import {SyncFrame, SYNC_DATA_MAX} from '../lib/SyncFrame';
 
 describe('SyncFrame', () => {
   describe('#fromDataView', () => {
@@ -41,25 +41,25 @@ describe('SyncFrame', () => {
 
   describe('DATA chunk size validation', () => {
     it('accepts DATA frame with byteLength equal to or less than 64 KiB', () => {
-      const frame = new SyncFrame('DATA', 64 * 1024);
-      expect(frame.byteLength).toBe(64 * 1024);
+      const frame = new SyncFrame('DATA', SYNC_DATA_MAX);
+      expect(frame.byteLength).toBe(SYNC_DATA_MAX);
 
       const dataView = new DataView(new ArrayBuffer(8));
       dataView.setUint32(0, encodeCmd('DATA'), true);
-      dataView.setUint32(4, 64 * 1024, true);
+      dataView.setUint32(4, SYNC_DATA_MAX, true);
       const parsed = SyncFrame.fromDataView(dataView);
-      expect(parsed.byteLength).toBe(64 * 1024);
+      expect(parsed.byteLength).toBe(SYNC_DATA_MAX);
     });
 
     it('rejects DATA frame with byteLength exceeding 64 KiB in constructor', () => {
-      expect(() => new SyncFrame('DATA', 64 * 1024 + 1))
+      expect(() => new SyncFrame('DATA', SYNC_DATA_MAX + 1))
           .toThrowError(/sync: DATA chunk length 65537 exceeds protocol maximum of 65536/);
     });
 
     it('rejects DATA frame with byteLength exceeding 64 KiB in fromDataView', () => {
       const dataView = new DataView(new ArrayBuffer(8));
       dataView.setUint32(0, encodeCmd('DATA'), true);
-      dataView.setUint32(4, 64 * 1024 + 1, true);
+      dataView.setUint32(4, SYNC_DATA_MAX + 1, true);
       expect(() => SyncFrame.fromDataView(dataView))
           .toThrowError(/sync: DATA chunk length 65537 exceeds protocol maximum of 65536/);
     });

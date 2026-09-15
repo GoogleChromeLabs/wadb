@@ -21,6 +21,7 @@ import {MockTransport} from './mock/MockTransport';
 import {Stream} from '../lib/Stream';
 import {Message} from '../lib/message';
 import {encodeCmd} from '../lib/Helpers';
+import {SYNC_DATA_MAX} from '../lib/SyncFrame';
 
 const options = {
   debug: false,
@@ -69,15 +70,15 @@ describe('Stream', () => {
       stream.consumeMessage(Message.newMessage('OKAY', 34, 1, false));
       stream.consumeMessage(Message.newMessage('OKAY', 34, 1, false));
 
-      // Device sends a DATA frame with byteLength of 65537 (exceeding the 64 KiB limit)
-      const chunkSize = 64 * 1024 + 1;
-      const payload = new Uint8Array(8 + chunkSize + 8);
+      // Device sends a DATA frame with byteLength exceeding the 64 KiB limit
+      const oversizedChunkSize = SYNC_DATA_MAX + 1;
+      const payload = new Uint8Array(8 + oversizedChunkSize + 8);
       const view = new DataView(payload.buffer);
       view.setUint32(0, encodeCmd('DATA'), true);
-      view.setUint32(4, chunkSize, true);
+      view.setUint32(4, oversizedChunkSize, true);
       // Trailing DONE frame
-      view.setUint32(8 + chunkSize, encodeCmd('DONE'), true);
-      view.setUint32(8 + chunkSize + 4, 0, true);
+      view.setUint32(8 + oversizedChunkSize, encodeCmd('DONE'), true);
+      view.setUint32(8 + oversizedChunkSize + 4, 0, true);
 
       stream.consumeMessage(Message.newMessage('WRTE', 34, 1, false, view));
 
