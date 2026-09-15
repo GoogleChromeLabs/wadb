@@ -18,7 +18,6 @@ import {Transport} from './transport/Transport';
 import {Options} from './Options';
 import {Message, MessageChannel, MessageListener} from './message';
 import {KeyStore} from './KeyStore';
-import {privateKeyDump} from './Helpers';
 import {AdbConnectionInformation} from './AdbConnectionInformation';
 import {Stream} from './Stream';
 import {Shell} from './Shell';
@@ -217,17 +216,15 @@ export class AdbClient implements MessageListener {
   }
 
   static async generateKey(dump: boolean, keySize: number): Promise<CryptoKeyPair> {
-    const extractable = dump;
+    // The persisted ADB host private key must never be extractable, and must
+    // never be logged. `Options.dump` controls USB wire hexdumps only and must
+    // not influence key extractability.
     const key = await crypto.subtle.generateKey({
       name: 'RSASSA-PKCS1-v1_5',
       modulusLength: keySize,
       publicExponent: new Uint8Array([0x01, 0x00, 0x01]),
       hash: { name: 'SHA-1' }
-    }, extractable, [ 'sign', 'verify' ])
-
-    if (dump) {
-      await privateKeyDump(key);
-    }
+    }, false, [ 'sign', 'verify' ]);
 
     return key;
   }
