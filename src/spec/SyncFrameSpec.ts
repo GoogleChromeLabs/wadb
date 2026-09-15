@@ -37,5 +37,43 @@ describe('SyncFrame', () => {
       expect(dataView.getUint32(0, true)).toBe(encodedCmd);
       expect(dataView.getUint32(4, true)).toBe(256);
     });
-  })
+  });
+
+  describe('DATA chunk size validation', () => {
+    it('accepts DATA frame with byteLength equal to or less than 64 KiB', () => {
+      const frame = new SyncFrame('DATA', 64 * 1024);
+      expect(frame.byteLength).toBe(64 * 1024);
+
+      const dataView = new DataView(new ArrayBuffer(8));
+      dataView.setUint32(0, encodeCmd('DATA'), true);
+      dataView.setUint32(4, 64 * 1024, true);
+      const parsed = SyncFrame.fromDataView(dataView);
+      expect(parsed.byteLength).toBe(64 * 1024);
+    });
+
+    it('rejects DATA frame with byteLength exceeding 64 KiB in constructor', () => {
+      expect(() => new SyncFrame('DATA', 64 * 1024 + 1))
+          .toThrowError(/sync: DATA chunk length 65537 exceeds protocol maximum of 65536/);
+    });
+
+    it('rejects DATA frame with byteLength exceeding 64 KiB in fromDataView', () => {
+      const dataView = new DataView(new ArrayBuffer(8));
+      dataView.setUint32(0, encodeCmd('DATA'), true);
+      dataView.setUint32(4, 64 * 1024 + 1, true);
+      expect(() => SyncFrame.fromDataView(dataView))
+          .toThrowError(/sync: DATA chunk length 65537 exceeds protocol maximum of 65536/);
+    });
+
+    it('allows non-DATA frames (such as DONE) with values greater than 64 KiB', () => {
+      const timestamp = 1700000000;
+      const doneFrame = new SyncFrame('DONE', timestamp);
+      expect(doneFrame.byteLength).toBe(timestamp);
+
+      const dataView = new DataView(new ArrayBuffer(8));
+      dataView.setUint32(0, encodeCmd('DONE'), true);
+      dataView.setUint32(4, timestamp, true);
+      const parsed = SyncFrame.fromDataView(dataView);
+      expect(parsed.byteLength).toBe(timestamp);
+    });
+  });
 });

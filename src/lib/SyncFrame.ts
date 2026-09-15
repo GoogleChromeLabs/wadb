@@ -16,9 +16,15 @@
 
 import {encodeCmd, decodeCmd} from './Helpers';
 
+// Per the ADB SYNC protocol, individual DATA chunks are never larger than 64k.
+export const SYNC_DATA_MAX = 64 * 1024;
+
 export class SyncFrame {
   constructor(readonly cmd: string, readonly byteLength: number) {
-
+    if (cmd === 'DATA' && byteLength > SYNC_DATA_MAX) {
+      throw new Error(
+          `sync: DATA chunk length ${byteLength} exceeds protocol maximum of ${SYNC_DATA_MAX}`);
+    }
   }
 
   toDataView(): DataView {
