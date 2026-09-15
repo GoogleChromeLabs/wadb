@@ -18,6 +18,7 @@ import {MockTransport} from '../mock/MockTransport';
 import {MockMessageListener} from '../mock/MockMessageListener';
 import {Message, MessageChannel, MessageHeader} from '../../lib/message';
 import {Options} from '../../lib/Options';
+import {Transport} from '../../lib/transport';
 
 describe('MessageChannel', () => {
   const options = {
@@ -91,6 +92,42 @@ describe('MessageChannel', () => {
       const receivedMessage2 = await messageListener.messageQueue.dequeue();
       expect(receivedMessage1).toEqual(messageWithoutData);
       expect(receivedMessage2).toEqual(messageWithData);
+    });
+
+    it('does not request payload from transport when message header length exceeds maximum allowed size', async () => {
+      // Simulate receiving a message header with an oversized payload length (e.g. 0xFFFFFFFF)
+      const oversizedLength = 0xFFFFFFFF;
+      const header = new MessageHeader('OKAY', 0, 0, oversizedLength, 0);
+      transport.pushData(header.toDataView());
+      const readSpy = spyOn(transport, 'read').and.callThrough();
+
+      messageChannel = new MessageChannel(transport, options, messageListener);
+
+      // Allow readLoop microtasks time to process the header
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      // Transport should not be requested to read an oversized payload
+      expect(readSpy).not.toHaveBeenCalledWith(oversizedLength);
+    });
+
+    it('rejects when reading a message with payload length exceeding maximum allowed size', async () => {
+      const oversizedLength = 0xFFFFFFFF;
+      const header = new MessageHeader('OKAY', 0, 0, oversizedLength, 0);
+      const testTransport: Transport = {
+        read: jasmine.createSpy('read').and.callFake(async (len: number) => {
+          if (len === 24) {
+            return header.toDataView();
+          }
+          return new DataView(new ArrayBuffer(0));
+        }),
+        write: jasmine.createSpy('write').and.resolveTo(),
+      };
+
+      const channel = Object.create(MessageChannel.prototype);
+      channel.transport = testTransport;
+      channel.options = options;
+
+      await expectAsync(channel.read()).toBeRejectedWithError(/exceeds/i);
     });
   });
 });
