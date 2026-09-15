@@ -19,6 +19,7 @@ import {MockTransport} from './mock/MockTransport';
 import {MockKeyStore} from './mock/MockKeyStore';
 import {Options} from '../lib/Options';
 import {Message} from '../lib/message';
+import {KeyStore} from '../lib/KeyStore';
 
 describe('AdbClient', () => {
   const keyStore = new MockKeyStore();
@@ -85,4 +86,54 @@ describe('AdbClient', () => {
       expect(queue.size).toBe(256);
     });
   });
+
+  describe('#generateKey', () => {
+    it('produces a non-extractable private key and does not log private key when dump=false', async () => {
+      const logSpy = spyOn(console, 'log');
+      const key = await AdbClient.generateKey(false, 2048);
+      expect(key.privateKey.extractable).toBe(false);
+      await expectAsync(crypto.subtle.exportKey('pkcs8', key.privateKey)).toBeRejected();
+      expect(logSpy).not.toHaveBeenCalledWith(jasmine.stringMatching(/-----BEGIN PRIVATE KEY-----/));
+    });
+
+    it('produces a non-extractable private key when dump=true', async () => {
+      const key = await AdbClient.generateKey(true, 2048);
+      expect(key.privateKey.extractable).toBe(false);
+    });
+
+    it('rejects private key export via Web Crypto exportKey() even when dump=true', async () => {
+      const key = await AdbClient.generateKey(true, 2048);
+      await expectAsync(crypto.subtle.exportKey('pkcs8', key.privateKey)).toBeRejected();
+    });
+
+    it('does not log PKCS#8 private key to console when dump=true', async () => {
+      const logSpy = spyOn(console, 'log');
+      await AdbClient.generateKey(true, 2048);
+      expect(logSpy).not.toHaveBeenCalledWith(jasmine.stringMatching(/-----BEGIN PRIVATE KEY-----/));
+    });
+
+    it('persists a non-extractable private key to KeyStore during connect() when dump=true', async () => {
+      let savedKey: CryptoKeyPair | undefined;
+      const capturingKeyStore: KeyStore = {
+        loadKeys: () => Promise.resolve([]),
+        saveKey: (k: CryptoKeyPair) => {
+          savedKey = k;
+          return Promise.resolve();
+        },
+      };
+      const dumpOptions: Options = {
+        ...options,
+        dump: true,
+      };
+
+      const transport = new MockTransport();
+      await transport.pushFromFile('src/spec/data/messages/connect/connect_auth_public_key.json');
+      const adbClient = new AdbClient(transport, dumpOptions, capturingKeyStore);
+      await adbClient.connect();
+
+      expect(savedKey).toBeDefined();
+      expect(savedKey!.privateKey.extractable).toBe(false);
+    });
+  });
 });
+

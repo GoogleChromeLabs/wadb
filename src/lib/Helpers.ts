@@ -61,16 +61,6 @@ export function toB64(buffer: ArrayBuffer): string {
   return btoa(new Uint8Array(buffer).reduce((s, b) => s + String.fromCharCode(b), ''));
 }
 
-export async function privateKeyDump(key: CryptoKeyPair): Promise<void> {
-  if (!key.privateKey.extractable) {
-    console.log('cannot dump the private key, it\'s not extractable');
-    return;
-  }
-
-  const privkey = await crypto.subtle.exportKey('pkcs8', key.privateKey);
-  console.log(`-----BEGIN PRIVATE KEY-----\n${toB64(privkey)}\n-----END PRIVATE KEY-----`);
-}
-
 export async function publicKeyDump(key: CryptoKeyPair): Promise<void> {
   if (!key.publicKey.extractable) {
     console.log('cannot dump the public key, it\'s not extractable');
