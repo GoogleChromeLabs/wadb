@@ -127,6 +127,21 @@ export class WebUsbTransport implements Transport {
   };
 
   /**
+   * Finds connected, paired ADB devices that have already been granted permission.
+   *
+   * @returns {Promise<USBDevice[]>} list of connected ADB devices.
+   */
+  static async findAdbDevices(): Promise<USBDevice[]> {
+    if (typeof navigator === 'undefined' || !navigator.usb) {
+      return [];
+    }
+    const devices = await navigator.usb.getDevices();
+    return devices.filter(
+        (device) => this.findMatch(device, ADB_DEVICE) !== null
+    );
+  }
+
+  /**
    * Opens a connection to a WebUSB device
    *
    * @param options
@@ -138,6 +153,20 @@ export class WebUsbTransport implements Transport {
           'and that you are using a Chromium-based browser.');
     }
     const device = await navigator.usb.requestDevice({filters: DEVICE_FILTERS});
+    return this.openDevice(device, options);
+  }
+
+  /**
+   * Opens a connection to an already paired WebUSB device
+   *
+   * @param {USBDevice} device the WebUSB device to connect to.
+   * @param {Options} options options for the transport.
+   * @returns {Promise<WebUsbTransport>}
+   */
+  static async openDevice(device: USBDevice, options: Options): Promise<WebUsbTransport> {
+    if (!device) {
+      throw new Error('Device is required');
+    }
     await device.open();
 
     // Find the WebUSB device

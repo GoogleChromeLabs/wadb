@@ -17,9 +17,10 @@
  export * from './lib/AdbClient';
  export * from './lib/AdbConnectionInformation';
  export * from './lib/IndexedDbKeyStore';
- export * from './lib/KeyStore'
+ export * from './lib/KeyStore';
  export * from './lib/Options';
  export * from './lib/Shell';
+ export * from './lib/ShellV2';
  export * from './lib/Stream';
  export * from './lib/SyncFrame';
  export * from './lib/message';

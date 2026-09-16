@@ -21,6 +21,7 @@ import {KeyStore} from './KeyStore';
 import {AdbConnectionInformation} from './AdbConnectionInformation';
 import {Stream} from './Stream';
 import {Shell} from './Shell';
+import {ShellV2} from './ShellV2';
 import {AsyncBlockingQueue} from './Queues';
 import {Framebuffer} from './Framebuffer';
 
@@ -174,6 +175,17 @@ export class AdbClient implements MessageListener {
     return chunks.join('');
   }
 
+  /**
+   * Executes a command on the device using the shell,v2 protocol.
+   *
+   * @param {string} command command to execute.
+   * @returns {Promise<ShellV2>} a ShellV2 instance exposing stdout, stderr, and exitCode.
+   */
+  async shellV2(command: string): Promise<ShellV2> {
+    const stream = await Stream.open(this, `shell,v2,raw:${command}`, this.options);
+    return new ShellV2(stream);
+  }
+
   async framebuffer(): Promise<Framebuffer> {
     return Framebuffer.create(this, this.options);
   }
@@ -192,6 +204,65 @@ export class AdbClient implements MessageListener {
     const result = await syncStream.pull(filename);
     await syncStream.close();
     return result;
+  }
+
+  /**
+   * Retrieves a file from the device as a ReadableStream of Uint8Array chunks.
+   *
+   * @param {string} filename path to the file to pull from device
+   * @returns {Promise<ReadableStream<Uint8Array>>} stream of file contents
+   */
+  async pullAsStream(filename: string): Promise<ReadableStream<Uint8Array>> {
+    const syncStream = await this.sync();
+    return syncStream.pullAsStream(filename);
+  }
+
+  /**
+   * Starts a backup operation on the device and returns a ReadableStream of the backup data.
+   *
+   * @param {string} args The arguments to be passed to the backup service (e.g. "-all").
+   * @returns {Promise<ReadableStream<Uint8Array>>} A stream of the backup archive data.
+   */
+  async backup(args: string): Promise<ReadableStream<Uint8Array>> {
+    const stream = await Stream.open(this, `backup:${args}`, this.options);
+    let isCancelled = false;
+
+    return new ReadableStream<Uint8Array>({
+      async start(controller): Promise<void> {
+        try {
+          while (!isCancelled) {
+            const message = await stream.read();
+            if (message.header.cmd === 'CLSE') {
+              break;
+            }
+            if (message.header.cmd === 'WRTE') {
+              if (message.data && message.data.byteLength > 0) {
+                const chunk = new Uint8Array(
+                    message.data.buffer,
+                    message.data.byteOffset,
+                    message.data.byteLength
+                );
+                controller.enqueue(chunk);
+              }
+              await stream.write('OKAY');
+            }
+          }
+        } catch (err) {
+          controller.error(err);
+        } finally {
+          await stream.close().catch(() => {});
+          try {
+            controller.close();
+          } catch {
+            // Already closed or errored
+          }
+        }
+      },
+      async cancel(): Promise<void> {
+        isCancelled = true;
+        await stream.close().catch(() => {});
+      },
+    });
   }
 
   /**

@@ -92,9 +92,8 @@ export class Stream {
    * length can be ignored.
    *
    * @param {string} remotePath path to the file to be pulled from the device
-   * @returns {Promise<Blob>} a Blog with the file contents.
    */
-  async pull(remotePath: string): Promise<Blob> {
+  private async initiatePull(remotePath: string): Promise<void> {
     const encoder = new TextEncoder();
     const encodedFilename = encoder.encode(remotePath);
 
@@ -107,15 +106,32 @@ export class Stream {
       throw new Error('WRTE/RECV failed: ' + wrteRecvResponse);
     }
 
-    // 17. We send the path of the file we want again sdcard/someFile.txt
+    // Send the path of the file we want
     const wrteFilenameMessage = this.newMessage('WRTE', new DataView(encodedFilename.buffer));
     await this.client.sendMessage(wrteFilenameMessage);
 
-    // 18. Device sends us OKAY
+    // Device sends us OKAY
     const wrteFilenameResponse = await this.read();
     if (wrteFilenameResponse.header.cmd !== 'OKAY') {
       throw new Error('WRTE/filename failed: ' + wrteFilenameResponse);
     }
+  }
+
+  /**
+   *
+   * Retrieves a file from device to a local file. The remote path is the path to
+   * the file that will be returned. Just as for the SEND sync request the file
+   * received is split up into chunks. The sync response id is "DATA" and length is
+   * the chunk size. After follows chunk size number of bytes. This is repeated
+   * until the file is transferred. Each chunk will not be larger than 64k.
+   * When the file is transferred a sync response "DONE" is retrieved where the
+   * length can be ignored.
+   *
+   * @param {string} remotePath path to the file to be pulled from the device
+   * @returns {Promise<Blob>} a Blob with the file contents.
+   */
+  async pull(remotePath: string): Promise<Blob> {
+    await this.initiatePull(remotePath);
 
     const okayMessage = this.newMessage('OKAY');
     let fileDataMessage = await this.read();
@@ -171,6 +187,143 @@ export class Stream {
       buffer = buffer.slice(8);
     }
     return new Blob(chunks);
+  }
+
+  /**
+   * Retrieves a file from the device as a ReadableStream of Uint8Array chunks.
+   *
+   * @param {string} remotePath path to the file to be pulled from the device
+   * @returns {Promise<ReadableStream<Uint8Array>>} a stream of the file contents
+   */
+  async pullAsStream(remotePath: string): Promise<ReadableStream<Uint8Array>> {
+    try {
+      await this.initiatePull(remotePath);
+    } catch (err) {
+      await this.close().catch(() => {});
+      throw err;
+    }
+
+    const okayMessage = this.newMessage('OKAY');
+    let isCancelled = false;
+
+    return new ReadableStream<Uint8Array>({
+      start: async (controller): Promise<void> => {
+        let buffer = new Uint8Array(0);
+
+        try {
+          while (!isCancelled) {
+            // Ensure buffer has at least 8 bytes for the SyncFrame header
+            while (buffer.length < 8 && !isCancelled) {
+              const fileDataMessage = await this.read();
+              if (fileDataMessage.header.cmd === 'CLSE') {
+                if (buffer.length > 0 && buffer.length < 8) {
+                  throw new Error(
+                      `Malformed sync response: truncated SyncFrame header (${buffer.length} bytes)`);
+                }
+                return;
+              }
+              if (!fileDataMessage.data || fileDataMessage.data.byteLength === 0) {
+                continue;
+              }
+              await this.client.sendMessage(okayMessage);
+
+              const incoming = new Uint8Array(
+                  fileDataMessage.data.buffer,
+                  fileDataMessage.data.byteOffset,
+                  fileDataMessage.data.byteLength
+              );
+              const newBuf = new Uint8Array(buffer.length + incoming.length);
+              newBuf.set(buffer, 0);
+              newBuf.set(incoming, buffer.length);
+              buffer = newBuf;
+            }
+
+            if (isCancelled || buffer.length < 8) {
+              break;
+            }
+
+            // Header frame (8 bytes)
+            const syncHeaderView = new DataView(buffer.buffer, buffer.byteOffset, 8);
+            const syncFrame = SyncFrame.fromDataView(syncHeaderView);
+            buffer = buffer.slice(8);
+
+            if (syncFrame.cmd === 'DONE') {
+              break;
+            } else if (syncFrame.cmd === 'DATA') {
+              // Ensure we have syncFrame.byteLength bytes for the DATA chunk
+              while (buffer.length < syncFrame.byteLength && !isCancelled) {
+                const fileDataMessage = await this.read();
+                if (fileDataMessage.header.cmd === 'CLSE') {
+                  throw new Error(
+                      `Sync stream closed unexpectedly while awaiting DATA chunk (${buffer.length}/${syncFrame.byteLength} bytes)`);
+                }
+                if (!fileDataMessage.data || fileDataMessage.data.byteLength === 0) {
+                  continue;
+                }
+                await this.client.sendMessage(okayMessage);
+
+                const incoming = new Uint8Array(
+                    fileDataMessage.data.buffer,
+                    fileDataMessage.data.byteOffset,
+                    fileDataMessage.data.byteLength
+                );
+                const newBuf = new Uint8Array(buffer.length + incoming.length);
+                newBuf.set(buffer, 0);
+                newBuf.set(incoming, buffer.length);
+                buffer = newBuf;
+              }
+
+              if (isCancelled) {
+                break;
+              }
+
+              const chunk = buffer.slice(0, syncFrame.byteLength);
+              buffer = buffer.slice(syncFrame.byteLength);
+              controller.enqueue(chunk);
+            } else if (syncFrame.cmd === 'FAIL') {
+              while (buffer.length < syncFrame.byteLength && !isCancelled) {
+                const fileDataMessage = await this.read();
+                if (fileDataMessage.header.cmd === 'CLSE') {
+                  break;
+                }
+                if (!fileDataMessage.data || fileDataMessage.data.byteLength === 0) {
+                  continue;
+                }
+                await this.client.sendMessage(okayMessage);
+
+                const incoming = new Uint8Array(
+                    fileDataMessage.data.buffer,
+                    fileDataMessage.data.byteOffset,
+                    fileDataMessage.data.byteLength
+                );
+                const newBuf = new Uint8Array(buffer.length + incoming.length);
+                newBuf.set(buffer, 0);
+                newBuf.set(incoming, buffer.length);
+                buffer = newBuf;
+              }
+              const errPayload = buffer.slice(0, syncFrame.byteLength);
+              const errMsg = new TextDecoder().decode(errPayload);
+              throw new Error(`Sync failed: ${errMsg}`);
+            } else {
+              throw new Error(`Unknown sync command: ${syncFrame.cmd}`);
+            }
+          }
+        } catch (err) {
+          controller.error(err);
+        } finally {
+          await this.close().catch(() => {});
+          try {
+            controller.close();
+          } catch {
+            // Already closed or errored
+          }
+        }
+      },
+      cancel: async (): Promise<void> => {
+        isCancelled = true;
+        await this.close().catch(() => {});
+      },
+    });
   }
 
 
