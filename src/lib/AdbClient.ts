@@ -21,6 +21,7 @@ import {KeyStore} from './KeyStore';
 import {AdbConnectionInformation} from './AdbConnectionInformation';
 import {Stream} from './Stream';
 import {Shell} from './Shell';
+import {ShellV2} from './ShellV2';
 import {AsyncBlockingQueue} from './Queues';
 import {Framebuffer} from './Framebuffer';
 
@@ -172,6 +173,17 @@ export class AdbClient implements MessageListener {
     }
 
     return chunks.join('');
+  }
+
+  /**
+   * Executes a command on the device using the shell,v2 protocol.
+   *
+   * @param {string} command command to execute.
+   * @returns {Promise<ShellV2>} a ShellV2 instance exposing stdout, stderr, and exitCode.
+   */
+  async shellV2(command: string): Promise<ShellV2> {
+    const stream = await Stream.open(this, `shell,v2,raw:${command}`, this.options);
+    return new ShellV2(stream);
   }
 
   async framebuffer(): Promise<Framebuffer> {
