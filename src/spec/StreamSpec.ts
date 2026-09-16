@@ -45,6 +45,44 @@ describe('Stream', () => {
       expect(stream.remoteId).toBe(34); // Defined in open.json
       expect(stream.service).toBe('test:');
     });
+
+    it('opens multiple streams concurrently with out-of-order responses without collisions', async () => {
+      const mockTransport = new MockTransport();
+      const adbClient = new AdbClient(mockTransport, options, new MockKeyStore());
+
+      // Start opening stream 1 (localId: 1) and stream 2 (localId: 2) concurrently
+      const stream1Promise = Stream.open(adbClient, 'shell:cmd1', options);
+      const stream2Promise = Stream.open(adbClient, 'shell:cmd2', options);
+
+      // Simulate device sending response for stream 2 first, then stream 1
+      const stream2Response = Message.newMessage('OKAY', 200, 2, false);
+      const stream1Response = Message.newMessage('OKAY', 100, 1, false);
+
+      // Dispatch stream 2 response first via AdbClient.newMessage
+      adbClient.newMessage(stream2Response);
+      adbClient.newMessage(stream1Response);
+
+      const [stream1, stream2] = await Promise.all([stream1Promise, stream2Promise]);
+
+      expect(stream1.localId).toBe(1);
+      expect(stream1.remoteId).toBe(100);
+      expect(stream1.service).toBe('shell:cmd1');
+
+      expect(stream2.localId).toBe(2);
+      expect(stream2.remoteId).toBe(200);
+      expect(stream2.service).toBe('shell:cmd2');
+    });
+
+    it('rejects when open response command is not OKAY', async () => {
+      const mockTransport = new MockTransport();
+      const adbClient = new AdbClient(mockTransport, options, new MockKeyStore());
+
+      const streamPromise = Stream.open(adbClient, 'shell:cmd', options);
+      const clseResponse = Message.newMessage('CLSE', 0, 1, false);
+      adbClient.newMessage(clseResponse);
+
+      await expectAsync(streamPromise).toBeRejectedWithError('OPEN Failed');
+    });
   });
 
   describe('#consumeMessage', () => {
