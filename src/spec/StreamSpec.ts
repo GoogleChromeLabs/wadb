@@ -227,6 +227,185 @@ describe('Stream', () => {
           /truncated SyncFrame header/);
     });
   });
+
+  describe('#pullAsStream', () => {
+    it('successfully pulls a file as a stream', async () => {
+      const mockTransport = new MockTransport();
+      const adbClient = new AdbClient(mockTransport, options, new MockKeyStore());
+      const stream = new Stream(adbClient, 'sync:', 1, 34, options);
+
+      // Handshake: OKAY for RECV command and OKAY for remote path
+      stream.consumeMessage(Message.newMessage('OKAY', 34, 1, false));
+      stream.consumeMessage(Message.newMessage('OKAY', 34, 1, false));
+
+      // DATA chunk (10 bytes) + DONE frame
+      const text = '0123456789';
+      const textBytes = new TextEncoder().encode(text);
+      const payload = new Uint8Array(8 + textBytes.length + 8);
+      const view = new DataView(payload.buffer);
+      view.setUint32(0, encodeCmd('DATA'), true);
+      view.setUint32(4, textBytes.length, true);
+      payload.set(textBytes, 8);
+      view.setUint32(8 + textBytes.length, encodeCmd('DONE'), true);
+      view.setUint32(8 + textBytes.length + 4, 0, true);
+
+      stream.consumeMessage(Message.newMessage('WRTE', 34, 1, false, view));
+
+      const fileStream = await stream.pullAsStream('/test/file');
+      const reader = fileStream.getReader();
+      const chunks: Uint8Array[] = [];
+      while (true) {
+        const {done, value} = await reader.read();
+        if (done) {
+          break;
+        }
+        if (value) {
+          chunks.push(value);
+        }
+      }
+
+      const totalLength = chunks.reduce((acc, c) => acc + c.length, 0);
+      const combined = new Uint8Array(totalLength);
+      let offset = 0;
+      for (const chunk of chunks) {
+        combined.set(chunk, offset);
+        offset += chunk.length;
+      }
+      expect(new TextDecoder().decode(combined)).toBe(text);
+    });
+
+    it('successfully pulls an empty file', async () => {
+      const mockTransport = new MockTransport();
+      const adbClient = new AdbClient(mockTransport, options, new MockKeyStore());
+      const stream = new Stream(adbClient, 'sync:', 1, 34, options);
+
+      // Handshake
+      stream.consumeMessage(Message.newMessage('OKAY', 34, 1, false));
+      stream.consumeMessage(Message.newMessage('OKAY', 34, 1, false));
+
+      // Immediate DONE frame
+      const payload = new Uint8Array(8);
+      const view = new DataView(payload.buffer);
+      view.setUint32(0, encodeCmd('DONE'), true);
+      view.setUint32(4, 0, true);
+      stream.consumeMessage(Message.newMessage('WRTE', 34, 1, false, view));
+
+      const fileStream = await stream.pullAsStream('/test/empty');
+      const reader = fileStream.getReader();
+      const {done, value} = await reader.read();
+      expect(done).toBeTrue();
+      expect(value).toBeUndefined();
+    });
+
+    it('pulls multiple chunks across separate messages', async () => {
+      const mockTransport = new MockTransport();
+      const adbClient = new AdbClient(mockTransport, options, new MockKeyStore());
+      const stream = new Stream(adbClient, 'sync:', 1, 34, options);
+
+      // Handshake
+      stream.consumeMessage(Message.newMessage('OKAY', 34, 1, false));
+      stream.consumeMessage(Message.newMessage('OKAY', 34, 1, false));
+
+      // Message 1: DATA frame 1 (5 bytes)
+      const part1 = new TextEncoder().encode('abcde');
+      const payload1 = new Uint8Array(8 + part1.length);
+      const view1 = new DataView(payload1.buffer);
+      view1.setUint32(0, encodeCmd('DATA'), true);
+      view1.setUint32(4, part1.length, true);
+      payload1.set(part1, 8);
+      stream.consumeMessage(Message.newMessage('WRTE', 34, 1, false, view1));
+
+      // Message 2: DATA frame 2 (5 bytes) + DONE frame
+      const part2 = new TextEncoder().encode('fghij');
+      const payload2 = new Uint8Array(8 + part2.length + 8);
+      const view2 = new DataView(payload2.buffer);
+      view2.setUint32(0, encodeCmd('DATA'), true);
+      view2.setUint32(4, part2.length, true);
+      payload2.set(part2, 8);
+      view2.setUint32(8 + part2.length, encodeCmd('DONE'), true);
+      view2.setUint32(8 + part2.length + 4, 0, true);
+      stream.consumeMessage(Message.newMessage('WRTE', 34, 1, false, view2));
+
+      const fileStream = await stream.pullAsStream('/test/multi');
+      const reader = fileStream.getReader();
+      const chunks: Uint8Array[] = [];
+      while (true) {
+        const {done, value} = await reader.read();
+        if (done) break;
+        if (value) chunks.push(value);
+      }
+
+      const combined = new Uint8Array(chunks.reduce((acc, c) => acc + c.length, 0));
+      let offset = 0;
+      for (const chunk of chunks) {
+        combined.set(chunk, offset);
+        offset += chunk.length;
+      }
+      expect(new TextDecoder().decode(combined)).toBe('abcdefghij');
+    });
+
+    it('rejects when DATA chunk size exceeds SYNC_DATA_MAX', async () => {
+      const mockTransport = new MockTransport();
+      const adbClient = new AdbClient(mockTransport, options, new MockKeyStore());
+      const stream = new Stream(adbClient, 'sync:', 1, 34, options);
+
+      // Handshake
+      stream.consumeMessage(Message.newMessage('OKAY', 34, 1, false));
+      stream.consumeMessage(Message.newMessage('OKAY', 34, 1, false));
+
+      // Oversized DATA frame (70000 bytes)
+      const payload = new Uint8Array(8);
+      const view = new DataView(payload.buffer);
+      view.setUint32(0, encodeCmd('DATA'), true);
+      view.setUint32(4, 70000, true);
+      stream.consumeMessage(Message.newMessage('WRTE', 34, 1, false, view));
+
+      const fileStream = await stream.pullAsStream('/test/oversized');
+      const reader = fileStream.getReader();
+      await expectAsync(reader.read()).toBeRejectedWithError(
+          /sync: DATA chunk length \d+ exceeds protocol maximum of 65536/);
+    });
+
+    it('rejects when device returns FAIL frame', async () => {
+      const mockTransport = new MockTransport();
+      const adbClient = new AdbClient(mockTransport, options, new MockKeyStore());
+      const stream = new Stream(adbClient, 'sync:', 1, 34, options);
+
+      // Handshake
+      stream.consumeMessage(Message.newMessage('OKAY', 34, 1, false));
+      stream.consumeMessage(Message.newMessage('OKAY', 34, 1, false));
+
+      // FAIL frame with "Permission denied"
+      const errMsg = new TextEncoder().encode('Permission denied');
+      const payload = new Uint8Array(8 + errMsg.length);
+      const view = new DataView(payload.buffer);
+      view.setUint32(0, encodeCmd('FAIL'), true);
+      view.setUint32(4, errMsg.length, true);
+      payload.set(errMsg, 8);
+      stream.consumeMessage(Message.newMessage('WRTE', 34, 1, false, view));
+
+      const fileStream = await stream.pullAsStream('/test/denied');
+      const reader = fileStream.getReader();
+      await expectAsync(reader.read()).toBeRejectedWithError(/Sync failed: Permission denied/);
+    });
+
+    it('closes stream when reader cancels', async () => {
+      const mockTransport = new MockTransport();
+      const adbClient = new AdbClient(mockTransport, options, new MockKeyStore());
+      const stream = new Stream(adbClient, 'sync:', 1, 34, options);
+      spyOn(stream, 'close').and.callThrough();
+
+      // Handshake
+      stream.consumeMessage(Message.newMessage('OKAY', 34, 1, false));
+      stream.consumeMessage(Message.newMessage('OKAY', 34, 1, false));
+
+      const fileStream = await stream.pullAsStream('/test/cancel');
+      const reader = fileStream.getReader();
+      await reader.cancel();
+
+      expect(stream.close).toHaveBeenCalled();
+    });
+  });
 });
 
 

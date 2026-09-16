@@ -411,6 +411,86 @@ describe('AdbClient', () => {
           /Shell command 'test_command' output exceeded maximum allowed limit of 50 bytes\./);
     });
   });
+
+  describe('#backup', () => {
+    it('streams backup data from device and acknowledges writes with OKAY', async () => {
+      const transport = new ShellMockTransport();
+      const adbClient = new AdbClient(transport, options, keyStore);
+
+      const remoteId = 42;
+      let localId: number | undefined;
+      const backupText = 'ANDROID BACKUP\n1\nnone\n';
+      const backupBytes = new TextEncoder().encode(backupText);
+      let okayReceived = false;
+
+      transport.onWrite = (msg: Message) => {
+        if (msg.header.cmd === 'OPEN') {
+          localId = msg.header.arg0;
+          expect(msg.dataAsString()).toBe('backup:-all\0');
+          transport.pushMessage(Message.newMessage('OKAY', remoteId, localId, false));
+          setTimeout(() => {
+            if (localId !== undefined) {
+              const dataView = new DataView(backupBytes.buffer);
+              transport.pushMessage(Message.newMessage('WRTE', remoteId, localId, false, dataView));
+            }
+          }, 5);
+        } else if (msg.header.cmd === 'OKAY') {
+          okayReceived = true;
+          if (localId !== undefined) {
+            transport.pushMessage(Message.newMessage('CLSE', remoteId, localId, false));
+          }
+        }
+      };
+
+      const stream = await adbClient.backup('-all');
+      const reader = stream.getReader();
+      const chunks: Uint8Array[] = [];
+      while (true) {
+        const {done, value} = await reader.read();
+        if (done) {
+          break;
+        }
+        if (value) {
+          chunks.push(value);
+        }
+      }
+
+      const totalLength = chunks.reduce((acc, c) => acc + c.length, 0);
+      const combined = new Uint8Array(totalLength);
+      let offset = 0;
+      for (const chunk of chunks) {
+        combined.set(chunk, offset);
+        offset += chunk.length;
+      }
+
+      expect(new TextDecoder().decode(combined)).toBe(backupText);
+      expect(okayReceived).toBeTrue();
+    });
+
+    it('closes backup stream when reader cancels', async () => {
+      const transport = new ShellMockTransport();
+      const adbClient = new AdbClient(transport, options, keyStore);
+
+      const remoteId = 42;
+      let localId: number | undefined;
+      let clseReceived = false;
+
+      transport.onWrite = (msg: Message) => {
+        if (msg.header.cmd === 'OPEN') {
+          localId = msg.header.arg0;
+          transport.pushMessage(Message.newMessage('OKAY', remoteId, localId, false));
+        } else if (msg.header.cmd === 'CLSE') {
+          clseReceived = true;
+        }
+      };
+
+      const stream = await adbClient.backup('-all');
+      const reader = stream.getReader();
+      await reader.cancel();
+
+      expect(clseReceived).toBeTrue();
+    });
+  });
 });
 
 class DiscreteMockTransport implements Transport {
