@@ -539,10 +539,12 @@ function extractOutboundMessages(receivedData: DataView[]): Message[] {
   const messages: Message[] = [];
   let i = 0;
   while (i < receivedData.length) {
-    const headerView = receivedData[i++];
-    const header = MessageHeader.parse(headerView, false);
+    const chunk = receivedData[i++];
+    const header = MessageHeader.parse(chunk, false);
     let dataView: DataView | undefined;
-    if (header.length > 0 && i < receivedData.length) {
+    if (chunk.byteLength >= 24 + header.length && header.length > 0) {
+      dataView = new DataView(chunk.buffer, chunk.byteOffset + 24, header.length);
+    } else if (header.length > 0 && i < receivedData.length) {
       dataView = receivedData[i++];
     }
     messages.push(new Message(header, dataView));

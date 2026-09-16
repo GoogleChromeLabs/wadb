@@ -69,11 +69,45 @@ export class WebUsbTransport implements Transport {
    * @returns {Promise<DataView} data read from the device
    */
   async read(len: number): Promise<DataView> {
-    const response = await this.device.transferIn(this.endpointIn, len);
-    if (!response.data) {
+    if (len === 0) {
+      return new DataView(new ArrayBuffer(0));
+    }
+
+    const firstResponse = await this.device.transferIn(this.endpointIn, len);
+    if (!firstResponse.data || firstResponse.data.byteLength === 0) {
       throw new Error('Response didn\'t contain any data');
     }
-    return response.data;
+
+    if (firstResponse.data.byteLength === len) {
+      return firstResponse.data;
+    }
+
+    const combined = new Uint8Array(len);
+    const firstLen = Math.min(firstResponse.data.byteLength, len);
+    combined.set(
+        new Uint8Array(
+            firstResponse.data.buffer,
+            firstResponse.data.byteOffset,
+            firstLen),
+        0);
+    let totalBytes = firstLen;
+
+    while (totalBytes < len) {
+      const response = await this.device.transferIn(this.endpointIn, len - totalBytes);
+      if (!response.data || response.data.byteLength === 0) {
+        throw new Error('Response didn\'t contain any data');
+      }
+      const chunkLen = Math.min(response.data.byteLength, len - totalBytes);
+      combined.set(
+          new Uint8Array(
+              response.data.buffer,
+              response.data.byteOffset,
+              chunkLen),
+          totalBytes);
+      totalBytes += chunkLen;
+    }
+
+    return new DataView(combined.buffer);
   }
 
   /**

@@ -256,13 +256,19 @@ export class Stream {
   static async open(adbClient: AdbClient, service: string, options: Options): Promise<Stream> {
     const localId = Stream.nextId++;
     let remoteId = 0;
-    const m = Message.open(localId, remoteId, service, options.useChecksum);
-    await adbClient.sendMessage(m);
 
-    let response;
-    do {
-      response = await adbClient.awaitMessage();
-    } while (response.header.arg1 !== localId);
+    const responsePromise = new Promise<Message>((resolve) => {
+      adbClient.registerPendingStream(localId, resolve);
+    });
+
+    let response: Message;
+    try {
+      const m = Message.open(localId, remoteId, service, options.useChecksum);
+      await adbClient.sendMessage(m);
+      response = await responsePromise;
+    } finally {
+      adbClient.unregisterPendingStream(localId);
+    }
 
     if (response.header.cmd !== 'OKAY') {
       throw new Error('OPEN Failed');

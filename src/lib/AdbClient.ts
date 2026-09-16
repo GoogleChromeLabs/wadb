@@ -44,6 +44,7 @@ export class AdbClient implements MessageListener {
   private messageChannel: MessageChannel;
   private messageQueue = new AsyncBlockingQueue<Message>(MAX_PENDING_MESSAGES);
   private openStreams: Set<Stream> = new Set();
+  private pendingStreams: Map<number, (msg: Message) => void> = new Map();
 
   /**
    * Creates a new AdbClient
@@ -65,7 +66,23 @@ export class AdbClient implements MessageListener {
     this.openStreams.delete(stream);
   }
 
+  registerPendingStream(localId: number, resolver: (msg: Message) => void): void {
+    this.pendingStreams.set(localId, resolver);
+  }
+
+  unregisterPendingStream(localId: number): void {
+    this.pendingStreams.delete(localId);
+  }
+
   newMessage(msg: Message): void {
+    // Check if this message matches a pending stream waiting to be opened.
+    const pendingResolver = this.pendingStreams.get(msg.header.arg1);
+    if (pendingResolver) {
+      this.pendingStreams.delete(msg.header.arg1);
+      pendingResolver(msg);
+      return;
+    }
+
     // Check if this message matches one of the open streams.
     const streams = Array.from(this.openStreams);
     for (const stream of streams) {
@@ -115,6 +132,8 @@ export class AdbClient implements MessageListener {
 
   async disconnect(): Promise<void> {
     this.messageChannel.close();
+    this.pendingStreams.clear();
+    this.openStreams.clear();
   }
 
   async shell(command: string, shellOptions?: ShellOptions | number): Promise<string> {

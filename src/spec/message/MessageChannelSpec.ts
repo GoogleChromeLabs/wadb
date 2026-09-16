@@ -52,9 +52,46 @@ describe('MessageChannel', () => {
       const message = Message.newMessage('CNXN', 1, 2, true, data);
       await messageChannel.write(message);
       messageChannel.close();
-      expect(transport.receivedData.length).toBe(2);
+      expect(transport.receivedData.length).toBe(1);
       expect(MessageHeader.parse(transport.receivedData[0])).toEqual(message.header);
-      expect(transport.receivedData[1].byteLength).toBe(4);
+      expect(transport.receivedData[0].byteLength).toBe(28);
+      const payloadBytes = new Uint8Array(transport.receivedData[0].buffer, 24, 4);
+      expect(payloadBytes).toEqual(new Uint8Array(data.buffer));
+    });
+
+    it('serializes concurrent writes sequentially without overlapping transport.write calls', async () => {
+      let concurrentWrites = 0;
+      let maxConcurrentWrites = 0;
+
+      const originalWrite = transport.write.bind(transport);
+      spyOn(transport, 'write').and.callFake(async (payload: ArrayBuffer) => {
+        concurrentWrites++;
+        maxConcurrentWrites = Math.max(maxConcurrentWrites, concurrentWrites);
+        // Small delay to simulate async I/O
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        concurrentWrites--;
+        return originalWrite(payload);
+      });
+
+      const msg1 = Message.newMessage('OKAY', 1, 2, false);
+      const msg2 = Message.newMessage('WRTE', 1, 2, false);
+      const msg3 = Message.newMessage('CLSE', 1, 2, false);
+
+      await Promise.all([
+        messageChannel.write(msg1),
+        messageChannel.write(msg2),
+        messageChannel.write(msg3),
+      ]);
+
+      expect(maxConcurrentWrites).toBe(1);
+      expect(transport.receivedData.length).toBe(3);
+    });
+
+    it('does not write to transport after close()', async () => {
+      messageChannel.close();
+      const message = Message.newMessage('CNXN', 1, 2, true);
+      await messageChannel.write(message);
+      expect(transport.receivedData.length).toBe(0);
     });
   });
 
