@@ -267,6 +267,19 @@ describe('WebUsbTransport', () => {
           WebUsbTransport.openDevice(nonAdbDevice, options)
       ).toBeRejectedWithError('Could not find an ADB device');
       expect(nonAdbDevice.open).toHaveBeenCalled();
+      expect(nonAdbDevice.close).toHaveBeenCalledTimes(1);
+    });
+
+    it('closes the device when initialization fails after opening', async () => {
+      const claimError = new Error('Could not claim interface');
+      const adbDevice = createMockDevice(true, {
+        claimInterface: jasmine.createSpy('claimInterface').and.returnValue(Promise.reject(claimError)),
+      });
+
+      await expectAsync(
+          WebUsbTransport.openDevice(adbDevice, options)
+      ).toBeRejectedWith(claimError);
+      expect(adbDevice.close).toHaveBeenCalledTimes(1);
     });
 
     it('successfully opens and configures an ADB device', async () => {
@@ -308,7 +321,9 @@ describe('WebUsbTransport', () => {
       });
 
       const openTransport = await WebUsbTransport.open(options);
-      expect(mockUsb.requestDevice).toHaveBeenCalled();
+      expect(mockUsb.requestDevice).toHaveBeenCalledWith({
+        filters: [{classCode: 255, subclassCode: 66, protocolCode: 1}],
+      });
       expect(adbDevice.open).toHaveBeenCalled();
       expect(openTransport.isAdb()).toBeTrue();
     });
